@@ -1,0 +1,422 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Cycle Toronto Association Community Awareness Report
+# How has your behavior benefited bicycle thievery over the years?
+### by: Amy(Yun Yao) Zhang & LingXin Li
+
+Over the years, bicycle thievery continues to be a rising concern among ambitious cyclists and the general public across Toronto communities. Between 2014 to 2019, the Toronto Police Service received over 20,000 reports of thievery. This overwhelming number has led the Toronto Police Service to publish these records on the Public Safety Data Portal to raise community awareness. The Cycle Toronto Association perceives this record release as an opportunity to educate the public about this data and potentially uncover patterns beneath these occurrences. After careful consideration, 15,041 observations remain in this data as we removed observations with unknown statuses or missing values. On behalf of the Cycle Toronto Association, this article aims to address patterns in bicycle thievery, affected cyclists' behaviours, and the change in behaviour of both parties over time and introduce potential bicycle features and risk factors associated with bicycle thievery.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning=FALSE, header=T,  message=FALSE, include=FALSE}
+#part1-data cleaning
+#import data
+library(tidyverse)
+library(ggplot2)
+data <- read_csv("bicycle-thefts-2014-2019.csv")
+```
+
+```{r, warning=FALSE,  message=FALSE, include=FALSE}
+#1.select column(variables) needed for the analysis, omit na value
+#2.create a new variable called "Season", group month 3-5 as spring, month 6-8 as summer, month 9-11 as fall, month 12-2 as winter
+#3.create a new variable called "Downtown_or_not", group division 52 and 51 by Downtown, group the rest by Non-Downtown
+#4.create a new variable called "Price", those who larger than 1000 is considered expensive, the rest are considered Non-expensive. The threshold is according to the summary of Cost_of_Bike, 1000 is the 3rd Qu. of Cost_of_Bike.
+
+data <- data %>% 
+  select(Occurrence_Year, Occurrence_Month, Occurrence_Time, Division, Premise_Type, Bike_Colour, Cost_of_Bike, Status, Lat, Long, Occurrence_Date) %>% 
+  filter(!Status == "UNKNOWN" 
+         & !is.na(Occurrence_Year)
+         & !is.na(Occurrence_Month)
+         & !is.na(Occurrence_Time)
+         & !is.na(Division)
+         & !is.na(Premise_Type)
+         & !is.na(Bike_Colour)
+         & !is.na(Cost_of_Bike)
+         & !is.na(Lat)
+         & !is.na(Long)
+         & !is.na(Occurrence_Date)
+         & !is.na(Status))
+
+
+data1 <- data %>% mutate(Season = case_when (Occurrence_Month == "3" ~ "Spring", 
+                                           Occurrence_Month == "4" ~ "Spring",
+                                           Occurrence_Month == "5" ~ "Spring",
+                                           Occurrence_Month == "6" ~ "Summer",
+                                           Occurrence_Month == "7" ~ "Summer",
+                                           Occurrence_Month == "8" ~ "Summer",
+                                           Occurrence_Month == "9" ~ "Fall",
+                                           Occurrence_Month == "10" ~ "Fall",
+                                           Occurrence_Month == "11" ~ "Fall",
+                                           Occurrence_Month == "12" ~ "Winter",
+                                           Occurrence_Month == "1" ~ "Winter",
+                                           Occurrence_Month == "2" ~ "Winter"))
+data1$Season <- as.factor(data1$Season)
+
+data2 <- data1 %>% mutate(Downtown_or_not = case_when(Division == "52" ~ "Downtown",
+                                                      Division == "51" ~ "Downtown",
+                                                      TRUE ~ "Rest of GTA"
+                                                      ))
+data2$Downtown_or_not <- as.factor(data2$Downtown_or_not)
+
+data3 <- data2 %>% mutate(Price = case_when(Cost_of_Bike >= 1000 ~ "Expensive",
+                                            TRUE ~ "Non-Expensive"))
+```
+
+```{r, include=FALSE}
+#5.Select the color for number of bikes larger than 300, and create a new variable called "Conspicuous_colour". Blue, Green, Orange, Purple, Red and White are consipicuous color (obvious to see by eyes). Black, Dark blue, grey, silver are considered as Non-Conspicuous color. The rest are considered as Other. 
+t <- table(data$Bike_Colour)
+names(t)[t > 300]
+data$Bike_Colour[!data$Bike_Colour %in% names(t)[t > 300] ] <- "Other"
+table(data$Bike_Colour)
+```
+
+```{r, include=FALSE}
+#5
+data4 <- data3 %>% mutate(Conspicuous_colour = case_when (Bike_Colour == "BLK" ~ "Non-Conspicuous",
+                                              Bike_Colour == "DBL" ~ "Non-Conspicuous",
+                                              Bike_Colour == "GRY" ~ "Non-Conspicuous",
+                                              Bike_Colour == "SIL" ~ "Non-Conspicuous",
+                                              Bike_Colour == "BLU" ~ "Conspicuous",
+                                              Bike_Colour == "GRN" ~ "Conspicuous",
+                                              Bike_Colour == "ONG" ~ "Conspicuous",
+                                              Bike_Colour == "PLE" ~ "Conspicuous",
+                                              Bike_Colour == "RED" ~ "Conspicuous",
+                                              Bike_Colour == "WHI" ~ "Conspicuous",
+                                              TRUE ~ "Other"))
+```
+
+```{r, include=FALSE}
+#only keep the number of hour from the time varaible.
+data4$Occurrence_Hour <- numeric(nrow(data4))
+for (i in 1:nrow(data4)) {
+  a <- strsplit(data4$Occurrence_Time[i], split = " ")[[1]][2]
+  data4$Occurrence_Hour[i] <- as.numeric(strsplit(a, split = ":")[[1]][1])}
+```
+
+```{r, include=FALSE}
+#eliminate the "Other' in Premise Type variable.
+data4 <- data4 %>% 
+  filter(!Premise_Type == "Other" 
+         )
+```
+
+```{r, include=FALSE}
+#create a new variable called "Parts_of_the_Day", 5am-11am Morning, 12pm-16pm Afternoon, 17pm-21pm Evening, 22pm-4am night.
+data4 <- data4 %>% mutate(Parts_of_the_Day = case_when (Occurrence_Hour == "0" ~ "Night",
+                                              Occurrence_Hour == "1" ~ "Night",
+                                              Occurrence_Hour == "2" ~ "Night",
+                                              Occurrence_Hour == "3" ~ "Night",
+                                              Occurrence_Hour == "4" ~ "Night",
+                                              Occurrence_Hour == "5" ~ "Morning",
+                                              Occurrence_Hour == "6" ~ "Morning",
+                                              Occurrence_Hour == "7" ~ "Morning",
+                                              Occurrence_Hour == "8" ~ "Morning",
+                                              Occurrence_Hour == "9" ~ "Morning",
+                                              Occurrence_Hour == "10" ~ "Morning",
+                                              Occurrence_Hour == "11" ~ "Morning",
+                                              Occurrence_Hour == "12" ~ "Afternoon",
+                                              Occurrence_Hour == "13" ~ "Afternoon",
+                                              Occurrence_Hour == "14" ~ "Afternoon",
+                                              Occurrence_Hour == "15" ~ "Afternoon",
+                                              Occurrence_Hour == "16" ~ "Afternoon",
+                                              Occurrence_Hour == "17" ~ "Evening",
+                                              Occurrence_Hour == "18" ~ "Evening",
+                                              Occurrence_Hour == "19" ~ "Evening",
+                                              Occurrence_Hour == "20" ~ "Evening",
+                                              Occurrence_Hour == "21" ~ "Evening",
+                                              Occurrence_Hour == "22" ~ "Night",
+                                              Occurrence_Hour == "23" ~ "Night",
+                                              TRUE ~ "Other"))
+```
+
+```{r, ,echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+#Part2-analysis and data visualization
+
+#Overview of the data
+#overview of all variables
+
+summary(data4)
+```
+
+```{r, include=FALSE}
+#1.  Theft Pattern
+#part a) Seasonality
+ggplot(data4, aes(x=factor(Season)))+
+  geom_bar(stat="count", width=0.7, fill="steelblue")+
+  theme_minimal() +
+  scale_x_discrete(limit = c("Spring", "Summer", "Fall","Winter"))
+```
+ 
+```{r,include=FALSE}
+#part b) Premise Type
+ggplot(data4, aes(x=factor(Premise_Type)))+
+  geom_bar(stat="count", width=0.7, fill="steelblue")+
+  theme_minimal()
+```
+**Patterns in Bicycle Thievery**
+\newline
+\newline
+Data related to the time and location of bicycle thievery plays a prominent role in helping uncover potential patterns that lie beneath individual incidents. The following visualizations aim to discover a "popular" time frame and location of thievery activities by analyzing the effects of seasonality and location, leading to a more detailed visualization for a 24-hour span.
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+#part a & b connection between season and premise type
+data4 %>%
+  ggplot(aes(x=Season, group=Premise_Type)) + 
+    geom_bar(stat="count") +
+    labs(fill="Status") +
+    facet_grid(~ Premise_Type) +
+    theme_bw() + 
+    theme(legend.position = "none") +
+    scale_x_discrete(limit = c("Winter", "Fall", "Summer","Spring")) +
+  coord_flip() +
+  labs(x = "Season", 
+       y = "Number of Bicycles (by Premise Type)", 
+       title = "The Highest Level of Thievery Activity occurs during the Summer",
+       subtitle = "Outside is the Premise Type with the Highest Level of Thievery",
+       caption = " Bicycles are stolen most frequently when people are Outside and during Summertime.") +
+  geom_bar(stat="count",fill="steelblue")
+```
+From a broad scope of time, seasonality is the first that comes to mind, and we wish to uncover the season with the highest level of thievery activity before we dive into the exact hours. From this visualization above, we observe over 6500 bicycles stolen during the Summer, June to August, suggesting Summer with the highest level of thievery occurrences. Moreover, bicycles located Outside are more likely to be stolen. This visualization shows that the number of bicycles stolen Outside is the highest among all Premise Types across all Seasons. These findings suggest that more thievery activities occur during the Summer, possibly due to an increase in the choice of bicycles as a form of commute, as well bicycles located Outside, often with fewer security measures, are more likely to be stolen. However, knowing that Summer is the season with the highest level of thievery activity is still a very broad scope. It does not provide enough information to help us pinpoint a "popular" time frame.
+
+```{r, include=FALSE}
+#part c) Time – popular theft time  
+#We can see that 12am(midnight) has the largest number of stolen bike.
+data4 %>% group_by(Occurrence_Hour) %>% summarise(n=n())
+```
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+df <- data4 %>% group_by(Occurrence_Hour, Season) %>% summarise(count=n())
+ggplot(data = df, mapping = aes(x = Occurrence_Hour, y=count, color = Season))  +
+  geom_line() + theme_bw() + scale_x_continuous(limits = c(0,24), breaks=seq(0,24,2))+
+  labs(y = "Number of Stolen Bicycles per hour", 
+       x = "Occurrence Hour (24-hour clock)", 
+       title = "Popular Thievery Hours across different Seasons",
+       subtitle = "Stolen Bicycles: Maximum(23:00&Summer), Minimum(9:00&Winter)",
+       caption = "Interesting Findings: 1.The number of stolen bicycles at 9am are nearly the SAME for all seasons except summer. \n
+       The later time it is, the bigger gap in number of stolen bikes between warmer seasons and colder seasons.\n
+       2. The TRENDS for all seasons are similar. However, there are more FLUCTUATIONS in warmer seasons.\n") +
+  theme(legend.position = "bottom")
+```
+
+With a further investigation into "popular" thievery activities, we discovered a general trend that is pervasive among all four seasons: the number of bicycles stolen per hour decreases from midnight till 9, then slowly rises to peak at 23. However, there are more significant fluctuations in warmer seasons. It is worth noting that the number of bicycles stolen per hour is nearly the same for all seasons except Summer, and gaps between each season grow as the day goes on. This phenomenon can be explained by the fact that there are fewer security measures on bicycles at night, and fewer bicycles are available to thieves in the early morning. We move forward to the following visualization to see the number of stolen bicycles from a more consolidated perspective. 
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+data4$Parts_of_the_Day <- factor(data4$Parts_of_the_Day, 
+                                 levels=c("Morning","Afternoon","Evening","Night"))
+df <- data.frame(Parts_of_the_Day = c("Morning","Afternoon","Evening","Night"),
+                 count = as.numeric(table(as.factor(data4$Parts_of_the_Day))))
+df$Parts_of_the_Day <- factor(df$Parts_of_the_Day, 
+                                 levels=c("Morning","Afternoon","Evening","Night"))
+ggplot(data4, aes(x=factor(Parts_of_the_Day)))+
+  geom_bar(stat="count", width=0.7, fill="steelblue")+
+  theme_minimal() +
+  scale_x_discrete(limit = c("Morning", "Afternoon", "Evening","Night")) +
+  labs(y = "Number of Bicycles", 
+       x = "Parts of the Day (24-hour clock)", 
+       title = "Popular Thievery Time Frame from 2014 to 2019 in Toronto",
+       subtitle = "A Thief would Perfer to Steal at Night",
+       caption = "Morning(5am-11am), Afternoon(12pm-16pm), Evening(17pm-21pm),Night(22pm-4am)") +
+  geom_hline(yintercept = 3760, linetype = 2, colour = "orange2")+
+  geom_text(y = 3900,x=1.5, label = "Average Stolen Bicycles (3760)", 
+           text=element_text(size=1), colour = "orange2") 
+```
+
+As one can see, the visualization above showcases the number of bicycles stolen in relationship to their stolen time, in a more general term, organized into Morning, Afternoon, Evening and Night. From this analysis, it is evident that as the day goes on, the number of bicycles stolen increases and peaks during the Night. This finding suggests that more thievery activities were to occur during Evenings and Nights, which supports our analysis of the previous visualization.
+\newline
+\newline
+With much exploration of thievery patterns, one can recognize a general trend among these data. Thievery activities tend to occur during Evening and Night times, which implies certain psychological activities of bicycle thieves: nighttime is easier to steal. Though the number of bicycles stolen varies between seasons, the general trend among bicycle thievery is pervasive across the 24-hour span, which suggests that seasonality mainly creates a more significant fluctuation in number, not variation. 
+
+\newpage
+**Consumer Pattern concerning Bicycle Usage and Bicycle Features**
+\newline
+\newline
+After thoroughly analyzing bicycle thievery patterns, it is also necessary to study those subjected to it and the relevant bicycle to investigate potential trends in consumer spending patterns and risky bicycle features. 
+```{r, warning = FALSE, include = FALSE}
+#2.  Consumer Purchasing Pattern + Bike Features 
+#part a) Bike Feature – Cost and Colour 
+#i) Bike cost – are more expensive bikes likely to be stolen and found
+df <- data4 %>% group_by(Price, Status) %>% summarise(n=n())
+
+###Calculation by hand according to df
+#1. Expensive total among all years: 4584+51=4635
+#Expensive recovered rate(%): 51/4635=0.01100324=1.1003%
+#2. Non-Expensive total among all years: 10337+69=10406
+#Non-Expensive recovered rate(%): 69/10406=0.00663079=0.663%
+
+## This indicates that expensive bikes are much more likely to be recovered
+```
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+data4$Status <- factor(data4$Status, levels=(c("STOLEN", "RECOVERED")))
+ggplot(data4, aes(x = Price, fill = Status)) + geom_bar() + theme_minimal() + 
+  scale_fill_manual(name="Status", values = c("gold2", "blue2")) + 
+  labs(y = "Number of Bicycles", 
+       x = "Price level", 
+       title = "Expensive Bicycles are more likely to be Recovered",
+       subtitle = "This chart includes the total number of bicycles stolen in Toronto (2014-2019)",
+       caption = "Expensive-above 3rd quartile of cost($1000), Non-Expensive-below 3rd quartile \n
+       By calculation - 1. Expensive bicycles total: 4635, Recovered rate: 51/4635=1.1003% \n
+                  2. Non-Expensive bicycles total: 10406, Recovered rate: 69/10406=0.663%") 
+```
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+data4$Status <- factor(data4$Status, levels=(c("STOLEN", "RECOVERED")))
+ggplot(data4, aes(x = Price, fill = Status)) + geom_bar() + theme_minimal() + 
+  scale_fill_manual(name="Status", values = c("gold2", "blue2")) + 
+  labs(y = "Number of Bicycles", 
+       x = "Price level", 
+       title = "Magnified Version - Expensive Bicycles are more likely to be Recovered",
+       subtitle = "The number of recovered are roughly the same, but the total number differ alot",
+       caption = "By calculation - 1. Expensive bicycles total: 4635, Recovered rate: 51/4635=1.1003% \n
+                  2. Non-Expensive bicycles total: 10406, Recovered rate: 69/10406=0.663%")  + coord_cartesian(ylim = c(0, 300))
+```
+
+Price is a feature that first came to mind, as it is a consumer choice and affects the activity of theft. From the visualization on the left, we observe that the majority of bicycles stolen are below the third quartile price of $1000, which we deem non-Expensive, while the rest are $1000 and higher in value. Over the past five years, 2014 – 2019, bicycles considered more expensive tend to be recovered more often than others, with a recovery rate of approximately 1.00%. The higher recovery rate may suggest that a more expensive bicycle is more distinct than others, discouraging thieves from stealing. The magnified version of the visualization lies on the right. When zoomed in on the data, we can see that the recovered bicycles between the two groups are similar despite the significant difference in total counts. The gap in total counts of bicycles showcases the preference of consumers to purchase cheaper bicycles, possibly after consideration of potential thievery. This finding could also support the idea that cheaper bicycles are under fewer security measures, making it easier to steal. Speaking of security measures, the location of the stolen bicycle also plays an important role. The following visualization breaks down the total number of stolen bicycles per day by location into two categories: Downtown and Greater Toronto Area.
+
+```{r, include = FALSE}
+#ii) Bike color
+data4 %>% group_by(Occurrence_Year, Conspicuous_colour) %>% summarise(n=n())
+```
+
+```{r, include = FALSE}
+#part b) Policy Division
+ggplot(data4, aes(x=factor(Downtown_or_not)))+
+geom_bar(stat="count", width=0.7, fill="steelblue")+
+theme_minimal()
+```
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+#Policy Division&Date
+data4$Occurrence_Date1 <- as.Date(data4$Occurrence_Date)
+data4 %>% ggplot(aes(x=Occurrence_Date1, color= Downtown_or_not)) + geom_line(aes(fill=..count..), stat="bin", binwidth=10) +
+   theme_bw() + scale_x_continuous(breaks = c(
+     as.Date("2014-01-01"),
+     as.Date("2015-01-01"),
+     as.Date("2016-01-01"),
+     as.Date("2017-01-01"),
+     as.Date("2018-01-01"),
+     as.Date("2019-01-01"),
+     as.Date("2019-12-31"))
+     ) +
+  theme(legend.position = "bottom") +
+  scale_colour_manual(values = c("steelblue", "gold2"))+ 
+  labs(y = "Number of Stolen Bicycles per day", 
+       x = "Occurrence Date", 
+       title = "Differences of stolen bicycles between Downtown and the rest of GTA",
+       subtitle = "The number of stolen bicycles in both areas reaches peak during the Summer every year",
+       caption = "The number of stolen bicycles are similar during cold days, and huge differences during hot days.")
+```
+After examining consumer purchasing preferences, we want to address potential differences among consumer living areas. We organized geographic locations into two groups by pinpointing the location and policy division number of reported bicycle thieveries. Examining the trends among the two groups aligns with our analysis of the thievery pattern: Summer has the most occurrences of thievery activities. With this trend, we observe that the number of bicycles stolen continues to rise to start in January and reaches a peak approximately during May or June, then slowly dies down as Winter occurs. Not only does this decrease in number imply thievery patterns but also consumers' choice to decrease the level of usage of bicycles during these months. Another important finding is that a significant discrepancy occurs between Downtown and GTA during the Summer. This could suggest that consumers living in the Greater Toronto Area are more willing to choose the bicycle as a form of commute during warmer days compared to Downtown, which leads to a higher number of bicycles stolen per day measured in the Greater Toronto Area. Moreover, the general trend also suggests that number of bicycles stolen per day is increasing and could be caused by an increase in number of people willing to commute via bicycles. According to the article: City of Toronto Cycling Study, published in 2019, we see that “Cyclists are more likely to report combining biking and public transportation than they did 10 years ago.” (City of Toronto & Nanos, 2019)
+\newline
+\newline
+Combining previous observations, we can conclude consumer patterns that more people are willing to choose a bicycle as a form of commute during the Summer, especially for those living in the Greater Toronto Area. People are also more likely to purchase cheaper bicycles to prevent significant loss from thievery. 
+
+\newpage
+**Change in Thievery & Consumer Spending Patterns over the Years**
+\newline
+\newline
+As we uncover the thievery and consumer patterns, we must shift perspective and analyze changes across the years. With data with a timespan of over five years, the following analysis aims to discover a potential change in both parties' preferences that is created due to the counterparty's action. 
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+total <- data4 %>% group_by(Occurrence_Year) %>% summarise(n=n())
+data_count2 <- data4 %>% group_by(Occurrence_Year, Price) %>% summarise(n=n())
+data_count2$p[data_count2$Occurrence_Year == 2014] <- data_count2$n[data_count2$Occurrence_Year == 2014]/total$n[total$Occurrence_Year==2014]
+data_count2$p[data_count2$Occurrence_Year == 2015] <- data_count2$n[data_count2$Occurrence_Year == 2015]/total$n[total$Occurrence_Year==2015]
+data_count2$p[data_count2$Occurrence_Year == 2016] <- data_count2$n[data_count2$Occurrence_Year == 2016]/total$n[total$Occurrence_Year==2016]
+data_count2$p[data_count2$Occurrence_Year == 2017] <- data_count2$n[data_count2$Occurrence_Year == 2017]/total$n[total$Occurrence_Year==2017]
+data_count2$p[data_count2$Occurrence_Year == 2018] <- data_count2$n[data_count2$Occurrence_Year == 2018]/total$n[total$Occurrence_Year==2018]
+data_count2$p[data_count2$Occurrence_Year == 2019] <- data_count2$n[data_count2$Occurrence_Year == 2019]/total$n[total$Occurrence_Year==2019]
+data_count2$p <- round(data_count2$p*100,0) 
+
+#data_count2$Price <- factor(data_count2$Price, levels=c("Non-Expensive","Expensive"))
+
+data_count2 %>% ggplot(aes(x=as.factor(Occurrence_Year), y=p, fill=Price, label=p)) + 
+  geom_bar(stat = "identity", position=position_dodge()) + theme_minimal() + 
+  scale_fill_manual(name="Price", values = c("gold2", "steelblue")) +
+  labs(y = "Percentage", 
+       x = "Year", 
+       title = "The Percentage of Expensive Stolen Bicycles changed over Time",
+       subtitle = "26% Total Increase from 2014 to 2019 ",
+       caption = "Source of data: https://data.torontopolice.on.ca/datasets/bicycle-thefts"
+       ) +
+  geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 2.8)+
+  theme(legend.position = "bottom")
+```
+Looking at this visualization above, we discover that the percentage of expensive bicycle theft increases each year steadily. This could suggest the change in the thievery pattern among bicycle thieves: the preference towards expensive bicycles may be due to the fact that they can sell for a higher price, giving the thieves a higher return for their actions. Another interpretation could be the fact that more cyclists are willing to make long-term investments towards their bicycle, leading them to make a more expensive purchase. This is supported by Dirk Sorenson’s article: The Cycling Market Pedals Ahead in 2021, in which he states that, “Cycling equipment revenue grew by 15% to $8.5 billion in the 12 months ending July 2021, compared to the previous year [, the] cycling equipment’s revenue growth between 2019 and 2020 was massive.”(Sorenson, 2022) This finding suggests that cyclists are more likely to purchase an expensive bicycle and continue to make adjustments and upgrades through the purchase of cycling equipments. Similar to the previous section, the price was used to analyze a bicycle's riskiness. However, we find it challenging to examine a clear trend in price and its relationship with counterparty actions. This is because multiple factors play into the price of a bicycle, for example, the wealth level of the individual, the availability of bicycles, the preference or liking of the individual, and other unpredictable related factors. Thus, we also decided to utilize the colour of bicycles that has been stolen over the years to create a more cohesive conclusion regarding the change in consumer and thief behaviours. 
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+#3. Year – pattern change over time  
+total <- data4 %>% group_by(Occurrence_Year) %>% summarise(n=n())
+data_count <- data4 %>% group_by(Occurrence_Year, Conspicuous_colour) %>% summarise(n=n())
+data_count$p[data_count$Occurrence_Year == 2014] <- data_count$n[data_count$Occurrence_Year == 2014]/total$n[total$Occurrence_Year==2014]
+data_count$p[data_count$Occurrence_Year == 2015] <- data_count$n[data_count$Occurrence_Year == 2015]/total$n[total$Occurrence_Year==2015]
+data_count$p[data_count$Occurrence_Year == 2016] <- data_count$n[data_count$Occurrence_Year == 2016]/total$n[total$Occurrence_Year==2016]
+data_count$p[data_count$Occurrence_Year == 2017] <- data_count$n[data_count$Occurrence_Year == 2017]/total$n[total$Occurrence_Year==2017]
+data_count$p[data_count$Occurrence_Year == 2018] <- data_count$n[data_count$Occurrence_Year == 2018]/total$n[total$Occurrence_Year==2018]
+data_count$p[data_count$Occurrence_Year == 2019] <- data_count$n[data_count$Occurrence_Year == 2019]/total$n[total$Occurrence_Year==2019]
+data_count$p <- round(data_count$p*100,0)
+data_count$Conspicuous_colour <- factor(data_count$Conspicuous_colour, levels=c("Non-Conspicuous","Conspicuous", "Other"))
+
+df <- data_count %>% filter(Conspicuous_colour=="Non-Conspicuous")
+df$p.change <- round((df$p-lag(df$p))*100/lag(df$p),1)
+df$p.change[-1] <- paste0("+", df$p.change[-1], "%")
+data_count1 <- merge(data_count, df %>% select(-n,-p), 
+                     all.x=T, by=c("Occurrence_Year","Conspicuous_colour"))
+
+data_count1 %>% ggplot(aes(x=as.factor(Occurrence_Year), y=p, fill=Conspicuous_colour, label = p.change)) + 
+  geom_bar(stat = "identity", position=position_dodge()) + theme_minimal() + 
+  scale_fill_manual( values = c("gold2", "steelblue", "grey")) + 
+  labs(y = "Percentage", 
+       x = "Year", 
+       title = "The Percentage of Stolen Bicycles with Non-Consipicuous Colours \n changed over Time",
+       subtitle = "An Average of +8.7% Every 2 Years after 2014 until 2019",
+       caption = "The Percentage of Stolen Bicycles with Consipicuous Colours and other Colours keep decreasing from 2014 to 2019")+
+  #geom_line(data=df,aes(x=factor(Occurrence_Year),y=p), group=1) +
+  
+  geom_text(position = position_dodge(width = .9),    # move to center of bars
+              vjust = -0.5,    # nudge above top of bar
+              size = 2.63) +
+  theme(legend.position = "bottom")
+```
+
+Before diving into the analysis, we grouped bicycle colours into Conspicuous and non-Conspicuous. Conspicuous colours are apparent and quickly picked up by the eye, for example, blue, green, orange, purple, red, and white; on the contrary, non-Conspicuous are dark blue, grey, black, and silver. This visualization shows an increase in the percentage of non-conspicuous coloured bicycles being stolen and a decrease in conspicuous coloured ones. The rising percentage of non-conspicuous bicycles suggests that more consumers purchase non-conspicuous coloured bicycles to decrease the chances of being stolen. On the other hand, thieves could have grown to prefer stealing non-conspicuous bicycles as its easier to sell. A decrease in stolen cases of conspicuous bicycles may indicate that fewer consumers are buying noticeable colours. It may also be more challenging for thieves to steal bicycles with eye-catching colours and get away with them. As supported by an article from SoCalCycling, “[o]ne major contributing factor to the increase in bike theft is that it’s just so easy for criminals to get away with it. A bicycle’s very nature makes it an easy target for theft: they are lightweight and simple to disassemble, making them easy to transport. The fact that they can be ridden away means they even offer thieves a quick getaway. Bike theft also isn’t high up on the priority list for law enforcement, so the likelihood of getting caught is also very low.” (SoCalCycling.com, 2022) 
+\newline
+\newline
+Analyzing the change in the behaviour of both parties across the years, we can see that the action of one group influences its counterparty. However, it may be hard to examine changes solely created by one group: consumers trying to decrease the chance of getting stolen, thieves trying to decrease the chance of getting caught and more returns. Nevertheless, the general trend remains that more bicycles stolen are in non-Conspicuous colours and growing in the bicycle price. 
+\newpage
+**Conclusion**
+\newline
+\newline
+Examining bicycle thievery from thievery and consumer patterns, risky bicycle features, and the change in behaviours of both parties, this article addresses findings from multiple dimensions. To summarize our findings, thievery patterns are consistent across seasons with higher fluctuations during warmer days, suggesting Summer is the highest level of thievery activity, and nighttime is the most "popular" time frame. Moving onto consumer behaviour, we see that those living in the Greater Toronto Area have a higher preference to commute via bicycle compared to Downtown and, generally, higher during the Summer. For purchasing patterns, consumers are more likely to purchase relatively cheaper bicycles to retain their loss from potential thievery. The analysis across 2014 – 2019 allowed us to see the change in behaviours of both parties caused by the actions of the counterparty. Lastly, relatively riskier bicycle features are its colour: Conspicuous vs. Non-Conspicuous, price: Expensive vs. Non-Expensive, and location: Outside.  
+\newline
+\newline
+**Limitations**
+\newline
+\newline
+At the end of our analysis, we want to address certain limitations that may affect the visualizations' accuracy and our interpretation. First, as part of data cleaning, we chose to keep all outliers to represent natural variations in our data. However, by doing so, the accuracy of our analysis could be affected by measurement errors and similar problems associated with outliers. Furthermore, when analyzing the change in behaviour of both parties over the years, it is impossible to separate the effect of one group from the general trend as the change in behaviour is caused by actions from both sides. Thus, we must only partially say which party's behaviour has significantly changed. Lastly, considering the time of our dataset: 2014-2019, it only recorded data before the pandemic, which does not replicate our current state of the world. Therefore, the findings drawn from this article may only partially include recent changes and thus cannot be fully applicable to both parties and the community. 
+
+\newpage
+**References**
+\newline
+\newline
+City of Toronto, O., & Nanos. (2019). *City of Toronto Cycling Study.* Toronto; City of Toronto. 
+\newline
+\newline
+Public Safety Data Portal. (n.d.). Retrieved November 1, 2022, from https://data.torontopolice.on.ca/ 
+\newline
+\newline
+SoCalCycling.com. (2022, March 1). *Bicycle theft is becoming increasingly common.*
+\newline
+SoCalCycling.com. Retrieved November 18, 2022, from https://socalcycling.com/2022/02/28/bicycle-theft-is-becoming-increasingly-common/ 
+\newline
+\newline
+Sorenson, D. (2022, February 10). *The cycling market pedals ahead in 2021.* The NPD Group. 
+\newline
+Retrieved November 18, 2022, from https://www.npd.com/news/blog/2021/the-cycling-market-pedals-ahead-in-2021/
