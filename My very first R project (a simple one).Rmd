@@ -1,0 +1,264 @@
+---
+title: "The Greatest Suggestions ever for RCYC"
+author: "LingXin Li, tutorial group(my ta:Gloria)"
+date: April 1, 2021
+output: 
+  beamer_presentation:
+    theme: "Pittsburgh"
+    colortheme: "orchid"
+    fonttheme: "structurebold"
+    slide_level: 2
+---
+
+
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# echo=FALSE will stop the code chunk from appearing in the knit document
+# warning=FALSE and message=FALSE will stop R messages from appearing in the knit document
+library(tidyverse)
+
+# here is the data for this project
+RCYC <- read_csv("STA130_project_data.csv")
+glimpse(RCYC)
+library(broom)
+# see the project information page for more information: 
+# https://q.utoronto.ca/courses/206597/pages/project-overview-2?module_item_id=2274626
+```
+
+
+## Introduction
+
+
+The data I used is a random sample of 1,000 Royal Canadian Yacht Club (RCYC) members, and it includes information for each of them in year 2017 and year 2020.\
+
+- My goal is to help Royal Canadian Yacht Club (RCYC) further explore the conditions of their services that they have provided for their members. After all, they can have a deeper understanding of the patterns, so that they can make improvements and development in order to serve their members better. 
+
+- audience: boss/managers of RCYC company
+
+## Objectives
+
+Here is the research questions that I want to investigate for the purpose of helping RCYC to make improvements for company and consumers.
+
+| Research Questions                         | Population                  |
+|--------------------------------------------|-----------------------------|
+| 1.proportion of "Holdover"                 | All RCYC                    |
+|  between male and female RCYC members.     | members at all time.        |
+|--------------------------------------------|-----------------------------|
+| 2.average total spending per member.       | All active members of       |
+|                                            | RCYC in 2017.               |  
+|--------------------------------------------|-----------------------------|
+| 3.relationship between city_dining         | All active members of       | 
+|   and other_spending.                      | RCYC in 2017.               |
+
+## Data Summary
+
+I cleaned the data by:\
+
+- creating a tibble called "Active_2017" which only includes the active RCYC members in 2017 in the sample data.
+- creating a variable called "total_spending" which is a sum of city_dining, island_dining, bar_spending and other_spending per active RCYC member in 2017.
+- (people who have 1 or more missing values from the following:"Sex, city_dining, island_dining, bar_spending, other_spending" are removed for above)
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+Active_2017 <- RCYC %>% 
+  select(Sex, Status, city_dining, island_dining, bar_spending, other_spending) %>% 
+  filter(Status == "ACTIVE" 
+         & !is.na(Sex)
+         & !is.na(city_dining)
+         & !is.na(island_dining)
+         & !is.na(bar_spending)
+         & !is.na(other_spending)) %>% 
+  mutate(total_spending = city_dining + island_dining + bar_spending + other_spending)
+
+
+```
+
+## Data Visualization for research q1
+```{r,echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+RCYC %>% filter(!is.na(Sex)) %>% ggplot(aes(x= Sex, fill = Status)) + 
+  geom_bar() + labs(x ="Sex", y = "count", title = "Distribution of Status between male and female in RCYC")
+
+
+```
+
+## Statistical Methods for research q1
+
+I will use two sample hypothesis test (Randomization test) to compare the proportions of “holdover” members between proportion of “holdover” of male in RCYC and proportion of “holdover” of female in RCYC at all time.\
+
+- $H_0:p_{male} = p_{female}$, $H_1:p_{male} \neq p_{female}$
+- $p_{male}$ is the proportion of male in RCYC who put their membership on hold for that year in all male members in RCYC at all time. $p_{female}$ is the proportion of female in RCYC who put their membership on hold for that year in all female members in RCYC at all time. 
+- $H_0$ is the null hypothesis assuming that the proportion of status "HOLDOVER" for members in RCYC of all of the years is the same between female and male at all time. $H_1$ is the alternative hypothesis that proportion of status "HOLDOVER" for members in RCYC of all of the years is not same between female and male at all time.
+
+## Results for research q1
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+set.seed(203)
+
+# Number of simulations
+repetitions <- 1000;
+simulated_values <- rep(NA, repetitions)
+
+# Test Statistic(differnce of prop of holdover by sex in the sample)
+test_stat_prop <- RCYC %>% filter(!is.na(Sex)) %>% group_by(Sex) %>%
+  summarise(prop = mean(Status == "HOLDOVER")) %>%
+  summarise(value = diff(prop)) %>% 
+  as.numeric
+
+# for loop
+
+for(i in 1:repetitions){
+  
+  # reshuffle by sex
+  sim_data <- RCYC %>% 
+    filter(!is.na(Sex)) %>% 
+    mutate(Sex = sample(Sex, replace = FALSE))
+  
+  # Calculate difference between the prop of holdoever for each simulation
+  sim_value <- sim_data %>% 
+    group_by(Sex) %>%
+    summarise(prop = mean(Status == "HOLDOVER")) %>%
+    summarise(value = diff(prop)) %>% 
+    as.numeric()
+  
+  #Store the result of each simulation
+    simulated_values[i] <- sim_value
+}
+
+
+# turn vector into data frame, name the column called "prop_diff"
+sim_tibble <- tibble(prop_diff = simulated_values)
+
+# plot sampling distribution
+sim_tibble %>% 
+  ggplot(aes(x=prop_diff)) + 
+  geom_histogram(bins=25, color="black", fill="grey")+
+  labs(x="Difference in proportion of holdover between 2 gender")+
+  geom_vline(xintercept=test_stat_prop,color="red",size=2)+
+  geom_vline(xintercept=-test_stat_prop,color="blue",size=2)
+
+# calculate p-value
+num_more_extreme <- sim_tibble %>% filter(abs(prop_diff) >= abs(test_stat_prop)) %>% summarise(n())
+
+p_value <- as.numeric(num_more_extreme / repetitions)
+p_value
+```
+
+- I found that the sample difference(test statistics, which is what we get when we do an experiment in real world) between proportion of male RCYC members whose status is "HOLDOVER" at all years in the sample and proportion of female RCYC members whose status is "HOLDOVER" at all years in the sample is `r test_stat_prop`. 
+
+- the corresponding p-value `r p_value` shows we have no evidence against the null hypothesis assuming that the proportion of status "HOLDOVER" for members in RCYC of all time is the same between female and male at all time. Type 2 error may occur which we might failed to reject $H_0$.
+
+## Data Visualization for research q2
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+ggplot(data=Active_2017, aes(y=total_spending))+
+  geom_boxplot()+
+  labs(title="Distribution of total spending for active RCYC members")
+```
+
+## Statistical Methods for research q2
+
+- Interested in the true population parameter: true mean of total spending per active member in 2017
+
+- I will use method of percentile bootstrap method, in order to get a confidence interval, which can create a range of plausible values for the true population parameter. 
+
+- I will calculate a 97% confidence interval for the mean total spending in dollars for members. 
+
+
+## Results for research q2
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+set.seed(203)
+repetitions <- 1000
+result <- rep(NA,repetitions)
+
+# sample size
+num_obs <- nrow(Active_2017)
+
+for (i in 1:repetitions){
+  # take bootstrap sample from the original data
+  boot_sample <- sample_n(Active_2017, size = num_obs, replace = TRUE)
+  
+  boot_mean <- boot_sample %>% 
+    summarise(mean_total_spending = mean(total_spending)) %>% 
+    as.numeric()
+  
+  result[i] <- boot_mean
+}
+ result <- tibble(result = result)
+ quantile(na.omit(result$result), c(0.015,0.985))
+```
+
+- I found that we are 97% confident that the true mean total spending per active member in 2017 is between 1610.073 dollars and 1872.116 dollars. In other word, I expect 97% of the interval[1610.073, 1872.116] in dollars contains the true mean total spending per active member in 2017.
+
+
+## Data Visualization for research q3
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=TRUE}
+Active_2017 %>% ggplot(aes(x = city_dining, y = other_spending)) + 
+  geom_point() + geom_smooth(se=FALSE, method="lm") + 
+  labs(x = "city_dining(in dollars)", y = "other_spending(in dollars)", title = "City Dining vs. Other Spending")
+```
+
+## Statistical Methods for research q3
+- I will make a simple linear regression model to explore whether or not city dining(2017 yearly amount spent on dining at the RCYC's restaurants in the city of Toronto) is a useful predictor to predict other spending.
+
+- In other words, I want explore whether or not there is a linear association between city dining and other spending.
+
+
+$$y_{i} = {\beta_0} + {\beta_1}x_{1i} +\epsilon_i$$
+
+
+$$other_{spending} = {\beta_0} + {\beta_1}\times city_{dining} + \epsilon_i$$
+
+---
+
+- $H_0:{\beta_1}=0$, and $H_0$ is the null hypothesis assuming that there is no linear association between other spending and city dining.  
+
+- $H_1$ is the alternative hypothesis that tells there is an linear association between other spending and city dining.
+
+- ${\beta_1}$ is the average change in other spending for 1-unit change in city dining. 
+
+- ${\beta_0}$ represent the amount of dollars of other spending when city dining is 0 dollar. $\epsilon_i$ is the random error term for every observation since we do not know the true values of ${\beta_0}$ and ${\beta_1}$.
+
+## Results for research q3
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+simple_mod <- lm(other_spending~city_dining, data = Active_2017)
+result <- summary(simple_mod)
+result
+```
+The estimated simple regression of other spending on city dining is:
+$\hat{other_{spending}} = \hat{\beta}_0  + \hat{\beta}_1 \times city_{dining}$
+
+$\hat{other_{spending}} = 327.44510  + 1.28462\times city_{dining}$
+
+- The estimation of  $\beta_0$ is $\hat \beta_0$ which is 327.44510. This tells us when city dining is 0 dollar, the average other spending on is 327.44510 dollars.
+
+- The estimation of $\beta_1$ is $\hat{\beta}_1$ which is 1.28421. This tells us each additional dollar in city dining is associated with an increase of 1.28421 dollar in mean other spending based on the association we observe.
+
+---
+
+- p-value for the null hypothesis assuming that there is no linear association between other spending and city dining is (`r (result$coefficients[2,4])`) which is extremly small. Based on the p-value, I conclude that we have strong evidence against the null hypothesis. 
+
+- Therefore, city dining is an useful predictor to predict other spending, and there is a linear association between other spending and city dining. (To be more details, a moderate positive linear association can be observed according to the data visualization without calculating p-value.)
+
+
+## Limitations
+
+- q1 include data in year2017 and year2020, where year2020 involved here is a special rare pandemic year, decisions for people might be special and changed for this year, so that the results might be relatively different as usual.
+
+- sample size of 1000 not a big sample size, the result might be relatively less accurate than a bigger sample size or compared to the result for the true population parameter that we would never know.
+
+
+## Conclusion
+
+Based on the result for:
+
+- q1: I suggest when RCYC want to make improvement or decisions, they could consider the services for female and male equally and improve both at the same time, because both gender are likely to have the same chance to put the membership on hold.
+
+- q2: It depends on RCYC managers or boss to decide whether or not the range is within their expectations, and to keep the services city&island&bar&other services, according to whether or not they think that plausible range for the true mean total spending is an appropraite and reasonable range. 
+
+- q3: I suggest to also focus on city dining if you want to increase other spending, because this is relatively a much more efficient way to consider since city dining is a useful predictor to predict or make inferences about other spending and there is a linear association between them.  
+
+
+
+## References and Acknowledgements
+
+The authors would like to thank Prof Moon, Prof Caetano, ta Gloria, ta Yaru, ta Amar for helpful suggestions and comments that improved the presentation of this poster.
+

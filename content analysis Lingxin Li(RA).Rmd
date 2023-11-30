@@ -1,0 +1,1916 @@
+---
+title: "content"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, warning = FALSE}
+
+if(!require("quanteda.textstats")) {install.packages("quanteda.textstats"); library("quanteda.textstats")}
+if(!require("quanteda.textplots")) {install.packages("quanteda.textplots"); library("quanteda.textplots")}
+
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("readtext")) {install.packages("readtext"); library("readtext")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+if(!require("RColorBrewer")) {install.packages("RColorBrewer"); library("RColorBrewer")}
+theme_set(theme_bw())
+```
+
+```{r}
+setwd("C:/Users/Cynthiali0621/Desktop")
+```
+
+
+The code here is my work from summer 2023 when I worked at the Future Skills Lab at UofT, where we aimed to identify the most important skills for future generations.
+
+\newpage
+Basic
+
+```{r}
+###I am converting all my pdf to txt in my computer folder
+
+if(!require("pdftools")) {install.packages("pdftools"); library("pdftools")}
+if(!require("stringr")) {install.packages("stringr"); library("stringr")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+# the location of pdfs
+pdf_directory <- "C:/Users/Cynthiali0621/Desktop/papers"
+
+# get the path of all pdfs in my folder
+pdf_files <- list.files(pdf_directory, pattern = "\\.pdf$", full.names = TRUE)
+
+# create a function that can convert pdf to txt
+convert_pdf_to_text <- function(pdf_file) {
+  text <- pdftools::pdf_text(pdf_file)
+  text <- str_replace_all(text, "\r\n", " ")
+  return(text)
+}
+
+# convert pdf to text
+all_text <- map(pdf_files, convert_pdf_to_text)
+
+# save them to individual txt document
+output_directory <- "C:/Users/Cynthiali0621/Desktop/txt"  # path of folder
+
+# create folder that saved output(if not exist)
+dir.create(output_directory, showWarnings = FALSE)
+
+# save every document
+for (i in seq_along(all_text)) {
+  text <- all_text[[i]]
+  file_name <- str_remove(str_extract(pdf_files[i], "[^/]+$"), "\\.pdf$")  
+  txt_file <- file.path(output_directory, paste0(file_name, ".txt"))  # path of every txt document
+  writeLines(text, txt_file)
+}
+
+```
+
+
+```{r}
+category <- c(
+  "Social Sciences",
+  "Social Sciences",
+  "Technology",
+  "Social Sciences",
+  "Technology",
+  "Social Sciences",
+  "Social Sciences",
+  "Multidisciplinary",
+  "Multidisciplinary",
+  "Social Sciences",
+  "Technology",
+  "Social Sciences",
+  "Social Sciences",
+  "Social Sciences",
+  "Social Sciences",
+  "Social Sciences",
+  "Social Sciences",
+  "Technology",
+  "Social Sciences",
+  "Social Sciences"
+)
+```
+
+
+```{r}
+#order here indicated most cited order
+order <- c("VOOGT_2012", "VOOGT_2013", "GANZARAIN_2016", "QIAN_2016", "LONGO_2017", "LI_2018a", "RAZZOUK_2012", "YANG_2012",
+           "SOULE_2015", "O'FLAHERTY_2015", "SACKEY_2016", "YADAV_2016", "CARE_2016", "GRETTER_2016", "HIRSCH-KREINSEN_2016",
+           "GRAVEMEIJER_2017", "HAKKINEN_2017", "CASTELO-BRANCO_2019", "KONG_2014a", "KONG_2014b")
+order <- paste0(order, ".txt")
+
+#order here indicated least cited order(from the least cited paper to the most cited paper)
+swap_order <- rev(order)
+swap_order
+```
+
+
+
+
+```{r}
+library(quanteda)
+
+ttt <- readtext("C:/Users/Cynthiali0621/Desktop/txt/*")
+my.corpus <- corpus(ttt)
+
+
+
+# Get the current document order
+current_order <- docnames(my.corpus)
+
+# Reorder the corpus based on the desired order
+my.corpus <- my.corpus[match(order, current_order)]
+
+
+docvars(my.corpus, "Textno") <- sprintf("%02d", 1:ndoc(my.corpus))
+
+
+my.corpus
+
+```
+
+```{r}
+#create a new variable Category in my corpus
+ccc <- data.frame(Category = category)
+docvars(my.corpus, "Category") <- ccc$Category
+docvars(my.corpus, "Category")
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+#Generating corpus statistics
+my.corpus.stats <- summary(my.corpus)
+my.corpus.stats
+```
+
+```{r}
+#summary for all documents under "Social Sciences" Category"
+social.stats <- my.corpus.stats[my.corpus.stats$Category == "Social Sciences", ]
+
+social.stats
+
+```
+
+```{r}
+#another way is to create a new corpus
+social.corpus <- my.corpus[my.corpus$Category == "Social Sciences", ]
+social.corpus
+social.corpus.stats <- summary(social.corpus)
+social.corpus.stats
+```
+
+
+
+```{r}
+#summary for all documents under "technology" Category"
+tech.stats <- my.corpus.stats[my.corpus.stats$Category == "Technology", ]
+
+tech.stats
+
+```
+
+```{r}
+#another way is to create a new corpus
+tech.corpus <- my.corpus[my.corpus$Category == "Technology", ]
+tech.corpus
+tech.corpus.stats <- summary(tech.corpus)
+tech.corpus.stats
+```
+
+
+
+
+```{r}
+my.corpus.stats$Text <- factor(my.corpus.stats$Text, levels = order)
+my.corpus.stats
+```
+
+```{r}
+#number of tokens (running words) for each paper in all categories
+ggplot(my.corpus.stats, aes(Text, Tokens, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Tokens per paper(all categories)") + xlab("") + ylab("")
+```
+
+```{r}
+#number of tokens (running words) for each paper in social sciences category
+ggplot(social.stats, aes(Text, Tokens, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Tokens(running words) per paper \n(Category of Social Sciences)") + xlab("") + ylab("")
+```
+
+```{r}
+#number of tokens (running words) for each paper in technology category
+ggplot(tech.stats, aes(Text, Tokens, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Tokens(running words) per paper \n(Category of Technology)") + xlab("") + ylab("")
+```
+
+
+```{r}
+#number of types (unique words) for each paper in all categories
+ggplot(my.corpus.stats, aes(Text, Types, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Types per paper(all categories)") + xlab("") + ylab("")
+```
+
+```{r}
+#number of types (unique words) for each paper in social sciences category
+ggplot(social.stats, aes(Text, Types, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Types per paper(Category of Social Sciences)") + xlab("") + ylab("")
+```
+
+```{r}
+#number of types (unique words) for each paper in technology category
+ggplot(tech.stats, aes(Text, Types, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Types per paper(Category of Technology)") + xlab("") + ylab("")
+```
+
+```{r}
+#sentences per paper in all categories
+ggplot(my.corpus.stats, aes(Text, Sentences, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Sentences per paper(all categories)") + xlab("") + ylab("")
+```
+```{r}
+#sentences per paper in social sciences category
+ggplot(social.stats, aes(Text, Sentences, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Sentences per paper(social sciences category)") + xlab("") + ylab("")
+```
+
+
+```{r}
+#sentences per paper in technology category
+ggplot(tech.stats, aes(Text, Sentences, group = 1)) + geom_line() + geom_point() + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Sentences per paper(technology category)") + xlab("") + ylab("")
+```
+
+```{r}
+# the relationship between types and tokens (or the so-called Type-Token-Ratio) in all categories
+ggplot(my.corpus.stats, aes(Tokens, Types, group = 1, label = Textno)) + geom_smooth(method = "lm", se = FALSE) + geom_text(check_overlap = T) + ggtitle("Type-Token-Ratio (TTR) per paper(all categories)")
+```
+
+```{r}
+# the relationship between types and tokens (or the so-called Type-Token-Ratio) in social sciences category
+ggplot(social.stats, aes(Tokens, Types, group = 1, label = Textno)) + geom_smooth(method = "lm", se = FALSE) + geom_text(check_overlap = T) + ggtitle("Type-Token-Ratio (TTR) per paper(social sciences category)")
+```
+
+```{r}
+# the relationship between types and tokens (or the so-called Type-Token-Ratio) in technology category
+ggplot(tech.stats, aes(Tokens, Types, group = 1, label = Textno)) + geom_smooth(method = "lm", se = FALSE) + geom_text(check_overlap = T) + ggtitle("Type-Token-Ratio (TTR) per paper(technology category)")
+```
+
+
+
+
+
+\newpage
+```{r}
+#Working with corpora
+#The following call extracts the first 500 words of the first paper
+#All categories
+str_sub(my.corpus[1], start = 1, end = 500)
+```
+
+
+
+```{r}
+#By means of corpus_reshape, a corpus can be transformed in such a way that each sentence results in its own document.
+
+#the 200th sentence in corpus
+my.corpus.sentences <- corpus_reshape(my.corpus, to = "sentences")
+my.corpus.sentences[200]
+```
+
+
+
+```{r}
+#With corpus_sample(), a random sample may be drawn from a corpus. 
+
+#We apply the function here to the sentence corpus to retrieve one random sentence.
+example.sentence <- corpus_sample(my.corpus.sentences, size = 1)
+example.sentence[1]
+```
+
+```{r}
+#Using corpus_subset, a corpus can finally be filtered by metadata. 
+
+#LongSentence,  TRUE if a set contains >= 25 tokens). In this way a partial corpus can be formed in which only longer sentences are contained. 
+
+docvars(my.corpus.sentences, "CharacterCount") <- ntoken(my.corpus.sentences)
+docvars(my.corpus.sentences, "LongSentence") <- ntoken(my.corpus.sentences) >= 25
+my.corpus.sentences_long <- corpus_subset(my.corpus.sentences, LongSentence == TRUE)
+my.corpus.sentences_long[1:3]
+```
+
+\newpage
+#Working with corpora, ONLY Social Sciences Category
+
+```{r}
+#Working with corpora
+#The following call extracts the first 500 words of the first paper
+#All categories
+str_sub(social.corpus[1], start = 1, end = 500)
+```
+
+
+
+```{r}
+#By means of corpus_reshape, a corpus can be transformed in such a way that each sentence results in its own document.
+
+#the 200th sentence in corpus
+social.corpus.sentences <- corpus_reshape(social.corpus, to = "sentences")
+social.corpus.sentences[200]
+```
+
+
+
+```{r}
+#With corpus_sample(), a random sample may be drawn from a corpus. 
+
+#We apply the function here to the sentence corpus to retrieve one random sentence.
+example.sentence <- corpus_sample(social.corpus.sentences, size = 1)
+example.sentence[1]
+```
+
+```{r}
+#Using corpus_subset, a corpus can finally be filtered by metadata. 
+
+#LongSentence,  TRUE if a set contains >= 25 tokens). In this way a partial corpus can be formed in which only longer sentences are contained. 
+
+docvars(social.corpus.sentences, "CharacterCount") <- ntoken(social.corpus.sentences)
+docvars(social.corpus.sentences, "LongSentence") <- ntoken(social.corpus.sentences) >= 25
+social.corpus.sentences_long <- corpus_subset(social.corpus.sentences, LongSentence == TRUE)
+social.corpus.sentences_long[1:3]
+```
+
+\newpage
+#Working with corpora, ONLY Technology Category
+
+```{r}
+#Working with corpora
+#The following call extracts the first 500 words of the first paper
+#All categories
+str_sub(tech.corpus[1], start = 1, end = 500)
+```
+
+
+
+```{r}
+#By means of corpus_reshape, a corpus can be transformed in such a way that each sentence results in its own document.
+
+#the 200th sentence in corpus
+tech.corpus.sentences <- corpus_reshape(tech.corpus, to = "sentences")
+tech.corpus.sentences[200]
+```
+
+
+
+```{r}
+#With corpus_sample(), a random sample may be drawn from a corpus. 
+
+#We apply the function here to the sentence corpus to retrieve one random sentence.
+example.sentence <- corpus_sample(tech.corpus.sentences, size = 1)
+example.sentence[1]
+```
+
+```{r}
+#Using corpus_subset, a corpus can finally be filtered by metadata. 
+
+#LongSentence,  TRUE if a set contains >= 25 tokens). In this way a partial corpus can be formed in which only longer sentences are contained. 
+
+docvars(tech.corpus.sentences, "CharacterCount") <- ntoken(tech.corpus.sentences)
+docvars(tech.corpus.sentences, "LongSentence") <- ntoken(tech.corpus.sentences) >= 25
+tech.corpus.sentences_long <- corpus_subset(tech.corpus.sentences, LongSentence == TRUE)
+tech.corpus.sentences_long[1:3]
+```
+
+
+
+
+\newpage
+#Tokenization(all categories)
+
+
+
+```{r}
+#Tokenization
+#Tokenization refers to the splitting of a text into running words or so-called N-grams (i.e., sequences of several words in succession).
+my.tokens <- tokens(my.corpus) %>% as.list()
+head(my.tokens$`CARE_2016`, 50)
+```
+
+```{r}
+# Define regular expression pattern to match tokens containing numbers, symbols, or single letters
+pattern <- ".*[\\d[:punct:]]|\\b\\w\\b.*"
+
+#.*[\\d[:punct:]] matches any token that contains a digit (\\d) or a punctuation symbol ([:punct:]).
+#| is the logical OR operator
+#\\b\\w\\b matches any single letter surrounded by word boundaries (\\b). This will match tokens consisting of a single alphabetical character.
+
+
+
+# Filter out tokens that match the pattern
+filtered_tokens <- tokens_select(tokens(my.corpus), pattern, valuetype = "regex", selection = "remove")
+
+
+my.tokens <- filtered_tokens %>% as.list()
+
+
+head(my.tokens$`CARE_2016`,200)
+```
+
+
+
+```{r}
+
+
+# Convert the filtered list format back to tokens
+tokens_format <- unlist(my.tokens)
+
+# Convert to tokens object
+tokens_format <- tokens(tokens_format)
+
+# View the filtered tokens
+tokens_format
+
+```
+
+
+
+```{r}
+#Using the tokens function, the text can also be split into N-grams (the multi-word sequences, each consisting of N words) using the argument ngrams. 
+
+my.tokens.ngrams <- tokens_ngrams(tokens(my.corpus), n = 3) %>% as.list() 
+head(my.tokens.ngrams$`CARE_2016`)
+ 
+```
+
+
+```{r}
+#compound the hyphenated tokens with the token that follows
+my.tokens <- tokens_compound(tokens(my.corpus), phrase("*- *"), concatenator = "")
+#remove the new tokens with their internal hyphens
+ 
+toks_hyphenated <- grep("\\w+-\\w+", types(my.tokens), value = TRUE) 
+my.tokens<-tokens_replace(my.tokens, toks_hyphenated, gsub("-", "", toks_hyphenated))
+```
+
+
+```{r}
+#retain certain terms
+#my.tokens <- tokens(my.corpus)
+tokens.retained <- tokens_select(my.tokens, c()) %>% as.list() #select only the tokens that contain the words "future" or "skills" from the my.tokens token object. 
+head(tokens.retained$`CARE_2016`,50)
+
+```
+
+
+
+
+
+
+```{r}
+#remove certain terms
+tokens.removed <- tokens_remove(my.tokens, c("issn",":","(",")")) %>% as.list()
+head(tokens.removed$`CARE_2016`,50)
+```
+
+```{r}
+#numbers, punctuation and symbols will be removed
+my.tokens <- tokens(my.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_url=TRUE) %>%
+  #tokens_tolower will be used to convert all words to lower case 
+  tokens_tolower() %>% 
+  # words “issn” and “doi” will be removed, as well as a number of english stop words.
+  tokens_remove(c(stopwords("english"), "issn", "doi")) %>% 
+  as.list()
+head(my.tokens$`CARE_2016`,50)
+```
+
+
+\newpage
+#Tokenization(Category of Social Sciences)
+```{r}
+#Tokenization
+#Tokenization refers to the splitting of a text into running words or so-called N-grams (i.e., sequences of several words in succession).
+social.tokens <- tokens(social.corpus) %>% as.list()
+head(social.tokens$`CARE_2016`, 12)
+```
+
+```{r}
+#Using the tokens function, the text can also be split into N-grams (the multi-word sequences, each consisting of N words) using the argument ngrams. 
+
+social.tokens.ngrams <- tokens_ngrams(tokens(social.corpus), n = 3) %>% as.list() 
+head(social.tokens.ngrams$`CARE_2016`)
+ 
+```
+
+
+```{r}
+#compound the hyphenated tokens with the token that follows
+social.tokens <- tokens_compound(tokens(my.corpus), phrase("*- *"), concatenator = "")
+#remove the new tokens with their internal hyphens
+ 
+toks_hyphenated <- grep("\\w+-\\w+", types(social.tokens), value = TRUE) 
+social.tokens<-tokens_replace(social.tokens, toks_hyphenated, gsub("-", "", toks_hyphenated))
+```
+
+```{r}
+#retain certain terms
+social.tokens <- tokens(social.corpus)
+tokens.retained <- tokens_select(social.tokens, c("future", "skills")) %>% as.list() #select only the tokens that contain the words "future" or "skills" from the social.tokens token object. 
+head(tokens.retained$`CARE_2016`)
+```
+
+```{r}
+#remove certain terms
+tokens.removed <- tokens_remove(social.tokens, c("issn", ":")) %>% as.list()
+head(tokens.removed$`CARE_2016`)
+```
+
+```{r}
+#numbers, punctuation and symbols will be removed
+social.tokens <- tokens(social.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove_url=TRUE) %>%
+  #tokens_tolower will be used to convert all words to lower case 
+  tokens_tolower() %>% 
+  # words “issn” and “doi” will be removed, as well as a number of english stop words.
+  tokens_remove(c(stopwords("english"), "issn", "doi")) %>% 
+  as.list()
+head(social.tokens$`CARE_2016`)
+```
+
+\newpage
+#Tokenization(technology)
+```{r}
+#Tokenization
+#Tokenization refers to the splitting of a text into running words or so-called N-grams (i.e., sequences of several words in succession).
+tech.tokens <- tokens(tech.corpus) %>% as.list()
+head(tech.tokens$`GANZARAIN_2016`, 12)
+```
+```{r}
+#Using the tokens function, the text can also be split into N-grams (the multi-word sequences, each consisting of N words) using the argument ngrams. 
+
+tech.tokens.ngrams <- tokens_ngrams(tokens(tech.corpus), n = 3) %>% as.list() 
+head(tech.tokens.ngrams$`GANZARAIN_2016`)
+```
+
+
+```{r}
+#compound the hyphenated tokens with the token that follows
+tech.tokens <- tokens_compound(tokens(tech.corpus), phrase("*- *"), concatenator = "")
+#remove the new tokens with their internal hyphens
+ 
+toks_hyphenated <- grep("\\w+-\\w+", types(tech.tokens), value = TRUE) 
+tech.tokens<-tokens_replace(tech.tokens, toks_hyphenated, gsub("-", "", toks_hyphenated))
+```
+
+
+
+
+```{r}
+#remove certain terms
+tokens.removed <- tokens_remove(tech.tokens, c("issn")) %>% as.list()
+head(tokens.removed$`GANZARAIN_2016`)
+```
+
+```{r}
+#numbers, punctuation and symbols will be removed
+tech.tokens <- tokens(tech.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE) %>%
+  #tokens_tolower will be used to convert all words to lower case 
+  tokens_tolower() %>% 
+  # words “issn” and “doi” will be removed, as well as a number of english stop words.
+  tokens_remove(c(stopwords("english"), "issn", "doi")) %>% 
+  as.list()
+head(tech.tokens$`GANZARAIN_2016`)
+```
+
+\newpage
+#DFMs(all categories)
+```{r}
+#Document Feature Matrices (DFMs): A DFM is a table, which depicts texts as rows and individual words as columns; in each cell, then, the frequencies of a given word in a given text is noted. Whenever we are interested in the relationship of words to texts (and vice versa), we calculate a DFM.
+my.dfm <- dfm(my.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+my.dfm
+
+```
+
+```{r}
+#count documents
+ndoc(my.dfm)
+```
+
+```{r}
+#count features(words here)
+nfeat(my.dfm)
+```
+
+```{r}
+#names of the documents
+head(docnames(my.dfm))
+```
+
+```{r}
+#names of features
+head(featnames(my.dfm), 50)
+```
+
+```{r}
+#?
+head(my.dfm, n = 12, nf =10) # Features/texts as a matrix
+```
+
+```{r}
+#?
+head(dfm_sort(my.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#u?
+#top 30?
+#top n?
+#The topfeatures() function counts features in the entire DFM. 
+topfeatures(my.dfm,30) # basic word frequencies
+```
+
+```{r}
+#The function textstat_frequency() additionally supplies the rank, the number of documents in which the feature occurs (docfreq) as well as metadata, which was used for filtering during the count (textstat_frequncy is to be preferred to topfeatures).
+#?
+word.frequencies <- textstat_frequency(my.dfm) # more elaborate frequencies
+head(word.frequencies)
+```
+
+```{r}
+#sorted by document and feature frequencies using dfm_sort.
+head(dfm_sort(my.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#certain features of a DFM can be specifically selected using dfm_select.
+dfm_select(my.dfm, pattern = "skill*")
+```
+
+
+```{r}
+#function dfm_wordstem() reduces words to their root form.
+my.dfm.stemmed <- dfm_wordstem(my.dfm)
+topfeatures(my.dfm.stemmed)
+```
+
+```{r}
+#feature?
+#propmax: the proportion of the feature counts of the highest feature count in a document
+my.dfm.proportional <- dfm_weight(my.dfm, scheme = "propmax")
+convert(my.dfm.proportional, "data.frame")
+```
+
+
+```{r}
+#Propmax scales the word frequency relative to the most frequent word
+my.dfm.propmax <- dfm_weight(my.dfm, scheme = "propmax")
+topfeatures(my.dfm.propmax[1,])
+```
+
+```{r}
+#TF-IDF and the Keyness approach (introduced later) are similar – both find particularly distinctive terms.
+my.dfm.tfidf <- dfm_tfidf(my.dfm)
+topfeatures(my.dfm.tfidf)
+```
+
+```{r}
+#create a reduced document feature matrix with dfm_trim()
+#extract those features found in at least 11 papers.
+my.dfm.trim <- dfm_trim(my.dfm, min_docfreq = 11)
+head(my.dfm.trim, n = 12, nf = 10) 
+```
+
+```{r}
+#extract those features in the 95th frequency percentile (i.e., the top 5% of all features).
+my.dfm.trim <- dfm_trim(my.dfm, min_termfreq = 0.95, termfreq_type = "quantile")
+head(my.dfm.trim, n = 12, nf = 10) 
+```
+
+\newpage
+#DFMs(social sciences)
+
+```{r}
+#Document Feature Matrices (DFMs): A DFM is a table, which depicts texts as rows and individual words as columns; in each cell, then, the frequencies of a given word in a given text is noted. Whenever we are interested in the relationship of words to texts (and vice versa), we calculate a DFM.
+social.dfm <- dfm(social.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+social.dfm
+
+```
+
+```{r}
+#count documents
+ndoc(social.dfm)
+```
+
+```{r}
+#count features(words here)
+nfeat(social.dfm)
+```
+
+```{r}
+#names of the documents
+head(docnames(social.dfm))
+```
+
+```{r}
+#names of features
+head(featnames(social.dfm), 50)
+```
+
+```{r}
+#?
+head(social.dfm, n = 12, nf =10) # Features/texts as a matrix
+```
+
+```{r}
+#?
+head(dfm_sort(social.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#u?
+#top 30?
+#top n?
+#The topfeatures() function counts features in the entire DFM. 
+topfeatures(social.dfm, 30) # basic word frequencies
+```
+
+```{r}
+#The function textstat_frequency() additionally supplies the rank, the number of documents in which the feature occurs (docfreq) as well as metadata, which was used for filtering during the count (textstat_frequncy is to be preferred to topfeatures).
+#?
+word.frequencies <- textstat_frequency(social.dfm) # more elaborate frequencies
+head(word.frequencies)
+```
+
+```{r}
+#sorted by document and feature frequencies using dfm_sort.
+head(dfm_sort(social.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#certain features of a DFM can be specifically selected using dfm_select.
+dfm_select(social.dfm, pattern = "skill*")
+```
+
+
+```{r}
+#function dfm_wordstem() reduces words to their root form.
+social.dfm.stemmed <- dfm_wordstem(social.dfm)
+topfeatures(social.dfm.stemmed)
+```
+
+```{r}
+#feature?
+#propmax: the proportion of the feature counts of the highest feature count in a document
+social.dfm.proportional <- dfm_weight(social.dfm, scheme = "propmax")
+convert(social.dfm.proportional, "data.frame")
+```
+
+
+```{r}
+#Propmax scales the word frequency relative to the most frequent word
+social.dfm.propmax <- dfm_weight(social.dfm, scheme = "propmax")
+topfeatures(social.dfm.propmax[1,])
+```
+
+```{r}
+#TF-IDF and the Keyness approach (introduced later) are similar – both find particularly distinctive terms.
+social.dfm.tfidf <- dfm_tfidf(social.dfm)
+topfeatures(social.dfm.tfidf)
+```
+
+```{r}
+#create a reduced document feature matrix with dfm_trim()
+#extract those features found in at least 11 papers.
+social.dfm.trim <- dfm_trim(social.dfm, min_docfreq = 11)
+head(social.dfm.trim, n = 12, nf = 10) 
+```
+
+```{r}
+#extract those features in the 95th frequency percentile (i.e., the top 5% of all features).
+social.dfm.trim <- dfm_trim(social.dfm, min_termfreq = 0.95, termfreq_type = "quantile")
+head(social.dfm.trim, n = 12, nf = 10) 
+```
+
+
+\newpage
+#DFMs(technology)
+```{r}
+#Document Feature Matrices (DFMs): A DFM is a table, which depicts texts as rows and individual words as columns; in each cell, then, the frequencies of a given word in a given text is noted. Whenever we are interested in the relationship of words to texts (and vice versa), we calculate a DFM.
+tech.dfm <- dfm(tech.corpus, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+tech.dfm
+
+```
+
+```{r}
+#count documents
+ndoc(tech.dfm)
+```
+
+```{r}
+#count features(words here)
+nfeat(tech.dfm)
+```
+
+```{r}
+#names of the documents
+head(docnames(tech.dfm))
+```
+
+```{r}
+#names of features
+head(featnames(tech.dfm), 50)
+```
+
+```{r}
+#?
+head(tech.dfm, n = 12, nf =10) # Features/texts as a matrix
+```
+
+```{r}
+#?
+head(dfm_sort(tech.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#u?
+#top 30?
+#top n?
+#The topfeatures() function counts features in the entire DFM. 
+topfeatures(tech.dfm,30) # basic word frequencies
+```
+
+```{r}
+#The function textstat_frequency() additionally supplies the rank, the number of documents in which the feature occurs (docfreq) as well as metadata, which was used for filtering during the count (textstat_frequncy is to be preferred to topfeatures).
+#?
+word.frequencies <- textstat_frequency(tech.dfm) # more elaborate frequencies
+head(word.frequencies)
+```
+
+```{r}
+#sorted by document and feature frequencies using dfm_sort.
+head(dfm_sort(tech.dfm, decreasing = TRUE, margin = "both"), n = 12, nf = 10) 
+```
+
+```{r}
+#certain features of a DFM can be specifically selected using dfm_select.
+dfm_select(tech.dfm, pattern = "skill*")
+```
+
+
+```{r}
+#function dfm_wordstem() reduces words to their root form.
+tech.dfm.stemmed <- dfm_wordstem(tech.dfm)
+topfeatures(tech.dfm.stemmed)
+```
+
+```{r}
+#feature?
+#propmax: the proportion of the feature counts of the highest feature count in a document
+tech.dfm.proportional <- dfm_weight(tech.dfm, scheme = "propmax")
+convert(tech.dfm.proportional, "data.frame")
+```
+
+
+```{r}
+#Propmax scales the word frequency relative to the most frequent word
+tech.dfm.propmax <- dfm_weight(tech.dfm, scheme = "propmax")
+topfeatures(tech.dfm.propmax[1,])
+```
+
+```{r}
+#TF-IDF and the Keyness approach (introduced later) are similar – both find particularly distinctive terms.
+tech.dfm.tfidf <- dfm_tfidf(tech.dfm)
+topfeatures(tech.dfm.tfidf)
+```
+
+```{r}
+#create a reduced document feature matrix with dfm_trim()
+#extract those features found in at least 11 papers.
+tech.dfm.trim <- dfm_trim(tech.dfm, min_docfreq = 11)
+head(tech.dfm.trim, n = 12, nf = 10) 
+```
+
+```{r}
+#extract those features in the 95th frequency percentile (i.e., the top 5% of all features).
+tech.dfm.trim <- dfm_trim(tech.dfm, min_termfreq = 0.95, termfreq_type = "quantile")
+head(tech.dfm.trim, n = 12, nf = 10) 
+```
+
+
+
+
+
+
+
+
+\newpage
+#Visualizing DFMs(all categories) and concordances
+```{r}
+#Visualizing DFMs
+#DFMs can also be represented as a word cloud of the most common terms.
+textplot_wordcloud(my.dfm, min_size = 1, max_size = 5, max_words = 100)
+```
+
+```{r}
+# The following plot shows the most distinctive terms according to TF-IDF for four papers, where the color indicates the respective paper. The fact that the word size in the plot does not indicate the absolute frequency but the TF-IDF value makes such a plot useful for direct comparison.
+textplot_wordcloud(my.dfm[1:4,], color = brewer.pal(4, "Set1"), min_size = 0.2, max_size = 4, max_words = 50, comparison = TRUE)
+```
+
+
+```{r}
+#Word and text metrics
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+theme_set(theme_bw())
+```
+
+```{r}
+# concordances (also called KWIC), which is the extraction of a search term and its surrounding sentence context from a corpus. Concordances can be created in quanteda for single words, but also for phrases.
+
+#This concordance contains all occurrences of the term ‘data’
+concordance <- kwic(my.corpus, "data")
+concordance
+```
+
+```{r}
+#This concordance contains all occurrences of the word ‘future’ and ‘skills’ followed by another word in upper case. 
+concordance <- kwic(my.corpus, phrase("future|skills [A-Z]+"), valuetype = "regex", case_insensitive = FALSE)
+concordance
+```
+
+
+```{r}
+#contains the word fragments ‘problem’ and ‘solv’, words like ‘solving’
+#???
+concordance <- kwic(my.corpus, c("problem*", "solv*"), window = 10, case_insensitive = FALSE)
+concordance
+```
+
+```{r}
+write_delim(concordance, path = "concordance.csv", delim = ";") # file is Excel compatible
+```
+\newpage
+#Visualizing DFMs and concordances(ONLY social sciences)
+```{r}
+#Visualizing DFMs
+#DFMs can also be represented as a word cloud of the most common terms.
+textplot_wordcloud(social.dfm, min_size = 1, max_size = 5, max_words = 100)
+```
+
+```{r}
+# The following plot shows the most distinctive terms according to TF-IDF for four papers, where the color indicates the respective paper. The fact that the word size in the plot does not indicate the absolute frequency but the TF-IDF value makes such a plot useful for direct comparison.
+textplot_wordcloud(social.dfm[1:4,], color = brewer.pal(4, "Set1"), min_size = 0.2, max_size = 4, max_words = 50, comparison = TRUE)
+```
+
+
+```{r}
+#Word and text metrics
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+theme_set(theme_bw())
+```
+
+```{r}
+# concordances (also called KWIC), which is the extraction of a search term and its surrounding sentence context from a corpus. Concordances can be created in quanteda for single words, but also for phrases.
+
+#This concordance contains all occurrences of the term ‘data’
+concordance <- kwic(social.corpus, "skills")
+concordance
+```
+
+```{r}
+#This concordance contains all occurrences of the word ‘future’ and ‘skills’ followed by another word in upper case. 
+concordance <- kwic(social.corpus, phrase("future|skills [A-Z]+"), valuetype = "regex", case_insensitive = FALSE)
+concordance
+```
+
+
+```{r}
+#contains the word fragments ‘problem’ and ‘solv’, words like ‘solving’
+#???
+concordance <- kwic(social.corpus, c("problem*", "solv*"), window = 10, case_insensitive = FALSE)
+concordance
+```
+
+\newpage
+\newpage
+#Visualizing DFMs and concordances(Technology Category)
+```{r}
+#Visualizing DFMs
+#DFMs can also be represented as a word cloud of the most common terms.
+textplot_wordcloud(tech.dfm, min_size = 1, max_size = 5, max_words = 100)
+```
+
+```{r}
+# The following plot shows the most distinctive terms according to TF-IDF for four papers, where the color indicates the respective paper. The fact that the word size in the plot does not indicate the absolute frequency but the TF-IDF value makes such a plot useful for direct comparison.
+textplot_wordcloud(tech.dfm[1:4,], color = brewer.pal(4, "Set1"), min_size = 0.2, max_size = 4, max_words = 50, comparison = TRUE)
+```
+
+
+```{r}
+#Word and text metrics
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+theme_set(theme_bw())
+```
+
+```{r}
+# concordances (also called KWIC), which is the extraction of a search term and its surrounding sentence context from a corpus. Concordances can be created in quanteda for single words, but also for phrases.
+
+#This concordance contains all occurrences of the term ‘data’
+concordance <- kwic(tech.corpus, "skills")
+concordance
+```
+
+```{r}
+#This concordance contains all occurrences of the word ‘future’ and ‘skills’ followed by another word in upper case. 
+concordance <- kwic(tech.corpus, phrase("future|skills [A-Z]+"), valuetype = "regex", case_insensitive = FALSE)
+concordance
+```
+
+
+```{r}
+#contains the word fragments ‘problem’ and ‘solv’, words like ‘solving’
+#???
+concordance <- kwic(tech.corpus, c("problem*", "solv*"), window = 10, case_insensitive = FALSE)
+concordance
+```
+
+\newpage
+#PLOT OF TERMS(ALL CATEGORIES)
+```{r, include = FALSE}
+#ignore this chunk, I use the next chunk to replace this
+###term1 <- kwic(my.corpus, "future", valuetype = "regex", case_insensitive = FALSE) %>% group_by(docname) %>% summarise(hits = n()) %>% mutate(percentage = hits/(my.corpus.stats$Tokens/100), searchterm = "future") %>% arrange(desc(percentage))
+###term2 <- kwic(my.corpus, "skills", valuetype = "regex", case_insensitive = FALSE) %>% group_by(docname) %>% summarise(hits = n()) %>% mutate(percentage = hits/(my.corpus.stats$Tokens/100), searchterm = "skills") %>% arrange(desc(percentage))
+###term1
+```
+
+
+
+
+
+```{r}
+#calculate the frequency and dispersion of tokens per narrative, which contain the terms ‘future’ and ‘skills’.
+my.tokens <- tokens(my.corpus)
+concordance_summary <- list()
+
+term1 <- kwic(my.tokens, pattern = "future", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+term2 <- kwic(my.tokens, pattern = "skills", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+total_tokens <- sum(ntoken(my.tokens))
+
+term1 <- term1 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "future") %>%
+  arrange(desc(percentage))
+
+term2 <- term2 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "skills") %>%
+  arrange(desc(percentage))
+
+concordance_summary$term1 <- term1
+concordance_summary$term2 <- term2
+
+term1
+
+```
+
+
+```{r}
+term2
+```
+
+
+
+```{r}
+#plot both the absolute and relative frequencies of the two terms.
+terms.combined <- bind_rows(term1, term2)
+terms.combined$docname <- factor(terms.combined$docname, levels = docnames(my.corpus))
+ggplot(terms.combined, aes(docname, hits, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat = 'identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"future\" and \"skills\" per paper (absolute)(allcategories)") + 
+  xlab("") + ylab("words (total)")
+
+```
+
+
+```{r}
+ggplot(terms.combined, aes(docname, percentage, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat='identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"future\" and \"skills\" per paper (relative)(all categories)") + 
+  xlab("") + ylab("words (%)")
+```
+\newpage
+```{r}
+my.tokens <- tokens(my.corpus)
+concordance_summary <- list()
+
+term1 <- kwic(my.tokens, pattern = "problem", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+term2 <- kwic(my.tokens, pattern = "solv", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+total_tokens <- sum(ntoken(my.tokens))
+
+term1 <- term1 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "problem") %>%
+  arrange(desc(percentage))
+
+term2 <- term2 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "solv") %>%
+  arrange(desc(percentage))
+
+concordance_summary$term1 <- term1
+concordance_summary$term2 <- term2
+
+term1
+
+
+```
+
+```{r}
+term2
+```
+
+
+```{r}
+terms.combined <- bind_rows(term1, term2)
+terms.combined$docname <- factor(terms.combined$docname, levels = docnames(my.corpus))
+ggplot(terms.combined, aes(docname, hits, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat = 'identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"problem\" and \"solv\" per paper (absolute) \n (all categories)") + 
+  xlab("") + ylab("words (total)")
+```
+
+
+
+```{r}
+ggplot(terms.combined, aes(docname, percentage, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat='identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"problem\" and \"solv\" per paper (relative) \n (all categories)") + 
+  xlab("") + ylab("words (%)")
+```
+\newpage
+```{r}
+my.tokens <- tokens(my.corpus)
+concordance_summary <- list()
+
+term1 <- kwic(my.tokens, pattern = "creat", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+term2 <- kwic(my.tokens, pattern = "collab", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+total_tokens <- sum(ntoken(my.tokens))
+
+term1 <- term1 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "creat") %>%
+  arrange(desc(percentage))
+
+term2 <- term2 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "collab") %>%
+  arrange(desc(percentage))
+
+concordance_summary$term1 <- term1
+concordance_summary$term2 <- term2
+
+term1
+
+
+```
+
+```{r}
+term2
+```
+
+
+```{r}
+terms.combined <- bind_rows(term1, term2)
+terms.combined$docname <- factor(terms.combined$docname, levels = docnames(my.corpus))
+ggplot(terms.combined, aes(docname, hits, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat = 'identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (absolute)\n (all categories)") + 
+  xlab("") + ylab("words (total)")
+```
+
+```{r}
+ggplot(terms.combined, aes(docname, percentage, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat='identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (relative)\n (all categories)") + 
+  xlab("") + ylab("words (%)")
+```
+
+\newpage
+#PLOT OF TERMS(SOCIAL SCIENCES CATEGORIES)
+```{r}
+social.tokens <- tokens(social.corpus)
+concordance_summary <- list()
+
+term1 <- kwic(social.tokens, pattern = "creat", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+term2 <- kwic(social.tokens, pattern = "collab", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+total_tokens <- sum(ntoken(social.tokens))
+
+term1 <- term1 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "creat") %>%
+  arrange(desc(percentage))
+
+term2 <- term2 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "collab") %>%
+  arrange(desc(percentage))
+
+concordance_summary$term1 <- term1
+concordance_summary$term2 <- term2
+
+term1
+
+
+```
+
+```{r}
+term2
+```
+
+
+```{r}
+terms.combined <- bind_rows(term1, term2)
+terms.combined$docname <- factor(terms.combined$docname, levels = docnames(social.corpus))
+ggplot(terms.combined, aes(docname, hits, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat = 'identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (absolute)\n (social sciences category)") + 
+  xlab("") + ylab("words (total)")
+```
+
+```{r}
+ggplot(terms.combined, aes(docname, percentage, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat='identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (relative)\n (social sciences category)") + 
+  xlab("") + ylab("words (%)")
+```
+
+\newpage
+#PLOT OF TERMS(TECHNOLOGY CATEGORIES)
+```{r}
+tech.tokens <- tokens(tech.corpus)
+concordance_summary <- list()
+
+term1 <- kwic(tech.tokens, pattern = "creat", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+term2 <- kwic(tech.tokens, pattern = "collab", window = 10, valuetype = "regex", case_insensitive = FALSE) %>%
+  group_by(docname) %>%
+  summarise(hits = n())
+
+total_tokens <- sum(ntoken(tech.tokens))
+
+term1 <- term1 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "creat") %>%
+  arrange(desc(percentage))
+
+term2 <- term2 %>%
+  mutate(percentage = hits / (total_tokens / 100),
+         searchterm = "collab") %>%
+  arrange(desc(percentage))
+
+concordance_summary$term1 <- term1
+concordance_summary$term2 <- term2
+
+term1
+
+
+```
+
+```{r}
+term2
+```
+
+
+```{r}
+terms.combined <- bind_rows(term1, term2)
+terms.combined$docname <- factor(terms.combined$docname, levels = docnames(tech.corpus))
+ggplot(terms.combined, aes(docname, hits, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat = 'identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (absolute)\n (technology category)") + 
+  xlab("") + ylab("words (total)")
+```
+
+```{r}
+ggplot(terms.combined, aes(docname, percentage, group = searchterm, fill = searchterm)) + 
+  geom_bar(stat='identity', position = position_dodge(), size = 1) + 
+  scale_fill_brewer(palette = "Set1") + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + 
+  ggtitle("Frequency of search terms \"creat\" and \"collab\" per paper (relative)\n (technology category)") + 
+  xlab("") + ylab("words (%)")
+```
+\newpage
+#Lexical dispersion of terms in all categories
+```{r}
+#interested in the position of the search terms
+#Plotting the term dispersion as ‘xray-plot’ can be useful, for which the function textplot_xray exists. The X-axis represents the position within the text at which the search term occurs.
+textplot_xray(kwic(my.corpus, "future", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"future\" in my papers (all categories)")
+```
+
+```{r}
+textplot_xray(kwic(my.corpus, "skills", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"skills\" in my papers(all categories)")
+```
+
+```{r}
+textplot_xray(kwic(my.corpus, "creat", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"creat\" in my papers(all categories)")
+```
+
+```{r}
+textplot_xray(kwic(my.corpus, "collab", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"collab\" in my papers(all categories)")
+```
+
+```{r}
+textplot_xray(kwic(my.corpus, "problem", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"problem\" in my papers(all categories)")
+```
+
+```{r}
+textplot_xray(kwic(my.corpus, "solv", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"solv\" in my papers(all categories)")
+```
+
+\newpage
+#Lexical dispersion of terms in social sciences category
+```{r}
+textplot_xray(kwic(social.corpus, "skills", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"skills\" in my papers \n(social sciences category)")
+```
+
+
+\newpage
+#Lexical dispersion of terms in technology category
+```{r}
+textplot_xray(kwic(tech.corpus, "skills", valuetype = "regex", case_insensitive = FALSE)) + ggtitle("Lexical dispersion of \"skills\" in my papers \n(technology category)")
+```
+
+\newpage
+#collocations(all categories)
+```{r}
+#move on to the so-called text statistics. 
+
+#These are functions that can be used to analyze words and texts with a view to their similarity to or distance from other words or texts. 
+
+#An important function in this context is the extraction of collocations. The collocates of a term are terms that often occur together. The process is inductive.
+
+#textstat_collocations(), detects frequent collocates in the papers.
+library(quanteda.textstats)
+my.tokens <- tokens(my.corpus)
+collocations <- textstat_collocations(my.tokens, min_count = 10)
+arrange(collocations, desc(count))
+```
+
+
+```{r}
+arrange(collocations, desc(lambda))
+```
+
+```{r}
+write_delim(collocations, path = "collocations.csv", delim = ";") # file is Excel compatible
+```
+
+\newpage
+#collocations(category of social sciences)
+```{r}
+library(quanteda.textstats)
+social.tokens <- tokens(social.corpus)
+collocations <- textstat_collocations(social.tokens, min_count = 10)
+arrange(collocations, desc(count))
+```
+
+```{r}
+arrange(collocations, desc(lambda))
+```
+
+
+\newpage
+#collocations(category of technology)
+```{r}
+#collocations(category of technology)
+library(quanteda.textstats)
+tech.tokens <- tokens(tech.corpus)
+collocations <- textstat_collocations(tech.tokens, min_count = 10)
+arrange(collocations, desc(count))
+```
+
+```{r}
+arrange(collocations, desc(lambda))
+```
+
+\newpage
+
+
+
+```{r, warning = FALSE}
+library(quanteda.textstats)
+#ALL categories
+#Word and text similarity and distance
+
+#As already indicated in the first chapter, numerous metrics can be calculated on the basis of a DFM, which reflect the proximity and distance of words and documents to each other. This is done with textstat_simil(). First, we construct a DFM in which each sentence corresponds to a document. This is necessary because word similarities cannot be calculated very reliably with a small number of documents, since similarity is operationalized as co-occurrence within the same document.
+
+corpus.sentences <- corpus_reshape(my.corpus, to = "sentences")
+dfm.sentences <- dfm(corpus.sentences, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+dfm.sentences <- dfm_trim(dfm.sentences, min_docfreq = 5)
+similarity.words <- textstat_simil(dfm.sentences, dfm.sentences[,"good"], margin = "features", method = "cosine")
+head(similarity.words[order(similarity.words[,1], decreasing = T),], 10)
+```
+
+```{r}
+#Then we calculate the word similarity to the term ‘skills’ using cosine distance. 
+distance.words <- textstat_dist(dfm.sentences, dfm.sentences[,"skills"], margin = "features", method = "euclidean")
+head(distance.words[order(distance.words[,1], decreasing = T),], 10)
+```
+
+```{r}
+#ONLY social sciences category
+corpus.sentences <- corpus_reshape(social.corpus, to = "sentences")
+dfm.sentences <- dfm(corpus.sentences, remove_numbers = TRUE, remove_punct = TRUE, remove_symbols = TRUE, remove = stopwords("english"))
+dfm.sentences <- dfm_trim(dfm.sentences, min_docfreq = 5)
+similarity.words <- textstat_simil(dfm.sentences, dfm.sentences[,"good"], margin = "features", method = "cosine")
+head(similarity.words[order(similarity.words[,1], decreasing = T),], 10)
+
+distance.words <- textstat_dist(dfm.sentences, dfm.sentences[,"skills"], margin = "features", method = "euclidean")
+head(distance.words[order(distance.words[,1], decreasing = T),], 10)
+```
+
+
+```{r}
+#?
+#similarity.texts <- data.frame(Text = factor(my.corpus.stats$Text, levels = rev(my.corpus.stats$Text)), #as.matrix(textstat_simil(my.dfm, my.dfm["CARE_2016.txt"], margin = "documents", method = "cosine")))
+#ggplot(similarity.texts, aes(A.Case.of.Identity, Text)) + geom_point(size = 2.5) + ggtitle("Cosine similarity of #paper (here for 'CARE_2016')") + xlab("cosine similarity") + ylab("")
+```
+
+
+
+```{r}
+#The so-called keyness metric is a convenient measure of the distinctiveness of a term for a certain text (i.e., how strongly the term characterizes the respective text in comparison to the entire corpus). 
+
+#While we have previously examined the distance of words and texts from each other, Keyness takes advantage of the frequency with which words are distributed over texts without taking their position into account. Keyness therefore also works well with longer texts, as long as they differ sufficiently. 
+
+#calculate the keyness with textstat_keyness() and plot these keyness statistics  with textplot_keyness().
+
+keyness <- textstat_keyness(my.dfm, target = "CARE_2016.txt", measure = "lr")
+textplot_keyness(keyness)
+```
+
+```{r}
+keyness <- textstat_keyness(my.dfm, target = "YANG_2012.txt", measure = "lr")
+textplot_keyness(keyness)
+```
+
+```{r}
+keyness <- textstat_keyness(my.dfm, target = "VOOGT_2012.txt", measure = "lr")
+textplot_keyness(keyness)
+```
+
+```{r}
+keyness <- textstat_keyness(my.dfm, target = "VOOGT_2013.txt", measure = "lr")
+textplot_keyness(keyness)
+```
+
+
+```{r}
+#Measures of lexical diversity are metrics that reflect the diversity of a text with regard to the use of words. 
+
+#calculate numerous metrics for the lexical diversity of the twelve novels with the function textstat_lexdiv().
+lexical.diversity <- textstat_lexdiv(my.dfm, measure = "all")
+lexical.diversity
+```
+
+```{r}
+#Another class of text metrics that can be calculated for a document based on its word composition are so-called readability indices. These are metrics that use text properties to calculate a numerical value that reflects the reading difficulty of a document as accurately as possible. Such indices are used, for example, in the field of education when it comes to determining the level of difficulty of a text for pupils, but also in public administration when it comes to using language that is as clear and accessible as possible, e.g. on a relevant website.
+
+#The calculation of numerous readability indices is done in quanteda with textstat_readability(). 
+
+readability <- textstat_readability(my.corpus, measure = "all")
+readability
+```
+
+```{r}
+write_delim(readability, path = "readability.csv", delim = ";") # file is Excel compatible
+```
+
+\newpage
+#Sentiment analysis: The aim of sentiment analysis is to determine the polarity of a text (i.e., whether the emotions expressed in it are rather positive or negative). 
+```{r}
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+if(!require("scales")) {install.packages("scales"); library("scales")}
+if(!require("lubridate")) {install.packages("lubridate"); library("lubridate")}
+```
+
+```{r}
+#Creating an ad-hoc dictionary in quanteda
+#create a very simple ad-hoc dictionary of only six terms to illustrate the structure of a dictionary in quanteda. 
+
+
+test.lexicon <- dictionary(list(positive.terms = c("happiness", "joy", "light"), negative.terms = c("sadness", "anger", "darkness")))
+test.lexicon
+```
+
+```{r}
+#read in txt
+#This lexicon contains over 6,700 English terms stored in two simple text files, each containing one word per line. We skip the first 35 lines with the argument skip because they contain meta information about the lexicon. 
+positive.words.bl <- scan("C:/Users/Cynthiali0621/Desktop/sentiment/positive-words.txt", what = "char", sep = "\n", skip = 35, quiet = T)
+negative.words.bl <- scan("C:/Users/Cynthiali0621/Desktop/sentiment/negative-words.txt", what = "char", sep = "\n", skip = 35, quiet = T)
+```
+
+```{r}
+# create the dictionary
+sentiment.dictionary <- dictionary(list(positive = positive.words.bl, negative = negative.words.bl))
+str(sentiment.dictionary)
+```
+
+```{r}
+#we can calculate a DFM, which applies the created lexicon to the corpus.
+#All actual mentions of the 6,700 terms contained in the Bing Liu dictionary have been replaced in the papers with their respective categories. All terms that do not appear in the dictionary are simply omitted.
+dfm.sentiment <- dfm(my.corpus, dictionary = sentiment.dictionary)
+dfm.sentiment
+```
+
+
+
+
+```{r}
+#The following plot shows the sentiment distribution in our papers.
+sentiment <- convert(dfm.sentiment, "data.frame") %>%
+  gather(positive, negative, key = "Polarity", value = "Words")  
+
+#no doc_id in sentiment
+
+
+
+ggplot(sentiment, aes(doc_id, Words, fill = Polarity, group = Polarity)) + geom_bar(stat='identity', position = position_dodge(), size = 1) + scale_fill_brewer(palette = "Set1") + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Sentiment scores in our papers") + xlab("")
+```
+#Weighting of sentiment scores
+```{r}
+#the ratio of positive and negative terms
+dfm.sentiment.prop <- dfm_weight(dfm.sentiment, scheme = "prop")
+dfm.sentiment.prop
+```
+
+```{r}
+sentiment <- convert(dfm.sentiment.prop, "data.frame") %>%
+  gather(positive, negative, key = "Polarity", value = "Share") %>% 
+mutate(doc_id = as_factor(doc_id)) %>% 
+  rename(Paper = doc_id)
+
+ggplot(sentiment, aes(Paper, Share, fill = Polarity, group = Polarity)) + geom_bar(stat='identity', position = position_dodge(), size = 1) + scale_fill_brewer(palette = "Set1") + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Sentiment scores in our papers (relative)")
+```
+
+#Calculation and scaling of positive and negative sentiment shares
+```{r}
+#The representation of sentiment shares within the papers be further improved by refraining from depicting both polarities. Since in these applications the negative polarity simply results in the inversion of the positive sentiment, this is sufficient. We also rescale the values using rescale so that they are between -1 and +1.
+
+sentiment <- convert(dfm.sentiment.prop, "data.frame") %>%
+  rename(Paper = doc_id, Sentiment = positive) %>%
+  select(Paper, Sentiment) %>%
+  mutate(Sentiment = rescale(Sentiment, to = c(-1,1))) %>%
+  mutate(Paper = as_factor(Paper))
+ggplot(sentiment, aes(Paper, Sentiment, group = 1)) + geom_line(size = 1) + geom_hline(yintercept = 0, linetype = "dashed", color = "lightgray") + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + ggtitle("Combined sentiment scores in our papers") + xlab("")
+```
+
+#Topic-specific dictionaries
+
+```{r}
+if(!require("quanteda")) {install.packages("quanteda"); library("quanteda")}
+if(!require("readtext")) {install.packages("readtext"); library("readtext")}
+if(!require("tidyverse")) {install.packages("tidyverse"); library("tidyverse")}
+if(!require("lubridate")) {install.packages("lubridate"); library("lubridate")}
+if(!require("readxl")) {install.packages("readxl"); library("readxl")}
+if(!require("dplyr")) {install.packages("dplyr"); library("dplyr")}
+if(!require("RColorBrewer")) {install.packages("RColorBrewer"); library("RColorBrewer")}
+theme_set(theme_bw())
+```
+
+
+
+
+
+```{r}
+new_chart <- read_excel("content analysis/chart.xlsx")
+#column_names <- colnames(new_chart)
+#print(column_names)
+
+#create a function to format the column name(only include the very first word)
+format_name <- function(col_name) {
+  # Extract the first word
+  words <- unlist(strsplit(col_name, " "))
+  formatted_name <- make.names(tolower(words[1]), unique = TRUE)
+  return(formatted_name)
+}
+
+#create a list to store subsets
+subsets_list <- list()
+
+# Get column names of the data frame
+col_names <- colnames(new_chart)
+
+#find the indices of columns that contain "skills"
+skills_cols <- grep("skills", col_names, ignore.case = TRUE)
+
+#iterate through the indices of skills_cols to create subsets
+for (i in 1:length(skills_cols)) {
+  #if it's not the last index, it takes a subset from the current "skills" column up to the one before the next "skills" column
+  if (i != length(skills_cols)) {
+    subset <- select(new_chart, skills_cols[i] : (skills_cols[i+1] - 1))
+  #if it's the last index, it takes a subset from the current "skills" column to the last column in the data frame.
+  } else {
+    subset <- select(new_chart, skills_cols[i] : ncol(new_chart))
+  }
+  #format the name of the subset and assign the subset to the list
+  subset_name <- format_name(col_names[skills_cols[i]])
+  subsets_list[[subset_name]] <- subset
+}
+
+#automatically create variables in your R environment and assign the subsets to them
+list2env(subsets_list, envir = .GlobalEnv)
+print(subsets_list)
+```
+
+```{r}
+#function to process the data
+function_sublist <- function(df) {
+  #remove column names
+  names(df) <- NULL
+
+  #extract the first row as column names
+  col_names <- as.character(df[1,])
+
+  #remove the first row
+  df <- df[-1,]
+
+  #assign the saved first-row column names to each column
+  colnames(df) <- col_names
+  
+  #remove row 1 to 5
+  df <- df[-c(1:5), ]
+  
+  #replace all white space in each column name with "_"
+  new_colnames <- gsub(" ", "_", colnames(df))
+  colnames(df) <- new_colnames
+  
+  #identify columns where all values are missing
+  all_missing_cols <- sapply(df, function(col) all(is.na(col)))
+  
+  #remove columns where all values are missing
+  df <- df[, !all_missing_cols]
+
+  return(df)
+}
+
+# Apply the function to all subsets in the list
+sublist_result <- lapply(subsets_list, function_sublist)
+
+print(sublist_result)
+```
+
+```{r}
+sublist_result[["basic"]][74, 1] <- NA
+sublist_result[["basic"]][74, 2] <- NA
+sublist_result[["basic"]][75, 1] <- NA
+sublist_result[["basic"]][75, 2] <- NA
+print(sublist_result[["basic"]])
+```
+
+
+
+
+```{r, warning = FALSE}
+library(readxl)
+chart <- read_excel("content analysis/chart.xlsx")
+```
+
+```{r}
+copy_of_uncleaned_chart <- read_excel("content analysis/chart.xlsx")
+View(copy_of_uncleaned_chart)
+```
+
+
+
+
+```{r}
+#set the names of each column to nothing
+names(chart) <- NULL
+```
+
+```{r}
+#extract the first row as column names
+col_names <- as.character(chart[1,])
+
+#remove the first row
+chart <- chart[-1,]
+
+#assign the saved first-row column names to each column
+colnames(chart) <- col_names
+```
+
+```{r}
+#remove row 1 to 5
+chart <- chart[-c(1:5), ]
+```
+
+```{r}
+# remove the url for the source
+chart[74, 1] <- NA
+chart[74, 2] <- NA
+chart[75, 1] <- NA
+chart[75, 2] <- NA
+
+```
+
+```{r}
+#replace all white space in each column name with "_"
+new_colnames <- gsub(" ", "_", colnames(chart))
+colnames(chart) <- new_colnames
+```
+
+
+
+```{r}
+#identify columns where all values are missing
+all_missing_cols <- sapply(chart, function(col) all(is.na(col)))
+
+#remove columns where all values are missing
+chart <- chart[, !all_missing_cols]
+```
+
+
+```{r}
+View(chart)
+```
+
+
+
+```{r}
+#extract the column names again
+column_names <- colnames(chart)
+
+#create the formatted text for each column
+formatted_text_list <- paste0(column_names, "= c(", sapply(column_names, function(col) {
+  #extract and format the observations for the given column(add * to every obs under each column), excluding NA values
+  obs <- chart[[col]]
+  obs <- obs[!is.na(obs)]
+  formatted_obs <- paste0("\"", obs, "*\"", collapse = ", ")
+  return(formatted_obs)
+}), ")")
+
+#add comma after each variable
+formatted_text <- paste0(formatted_text_list, collapse = " , \n")
+
+#view it
+cat(formatted_text)
+
+```
+
+```{r}
+library(utils)
+
+#copy the content of the formatted_text variable to the clipboard
+writeClipboard(formatted_text)
+
+```
+
+
+
+```{r}
+my <- dictionary(list(Continuous_learning= c("adult learning*", "constant training*", "continual improvement*", "continual training*", "continuation of studies*", "continue learning*", "continue the training*", "continue their education*", "continue to learn*", "continue to refine*", "continue training*", "continued development*", "continued education*", "continued improvement*", "continued learning*", "continued refinement*", "continued training*", "continuing development*", "continuing learning*", "continuing professional development*", "continuing professional education*", "continuing training*", "continuing vocational training*", "continuous development*", "continuous education*", "continuous improvement*", "continuous professional development*", "continuous professional training*", "continuous refinement*", "continuous training*", "continuous vocational training*", "continuously improve*", "education continues*", "education for life*", "further development*", "further education*", "further training*", "further vocational training*", "in service education*", "in service training*", "inservice training*", "in-service training*", "keep learning*", "learning throughout*", "life long education*", "life long learning*", "lifelong education*", "lifelong learning*", "life-long learning*", "lifelong training*", "long learning*", "on the job learning*", "ongoing education*", "ongoing formation*", "ongoing learning*", "ongoing professional development*", "ongoing training*", "ongoing vocational training*", "periodic training*", "permanent education*", "permanent training*", "recurrent education*", "recurrent training*", "self-learning*", "aprenticeship*", "learners*", "skill acquisition*") , 
+Document_Use= c("graphical presentation*", "read graph*", "read list*", "read table*", "reading list*", "reading table*", "schematics*", "screenwriting*", "use blueprint*", "use graph*", "use list*", "using graph*", "using schedule*", "using table*", "using table*") , 
+Numeracy= c("accounting*", "aggregate*", "algebra*", "algebraic*", "algorithm*", "algorithmic*", "analyze data*", "arithmetic*", "arithmetical*", "arithmetically*", "arithmetics*", "at arithmetic*", "at math*", "at mathematics*", "balance on the account*", "balancing item in the account*", "bill*", "billings*", "budgeting*", "calculate*", "calculate*", "calculating*", "calculation*", "calculus*", "checking account*", "counting*", "counting up*", "create budget*", "data analysis math*", "data processing*", "enumerate*", "for the calculation*", "Formulae*", "Geometry*", "good with numbers*", "in calculating*", "in calculus*", "logarithm*", "logarithmic*", "math operations*", "math proficiency*", "mathematic*", "mathematical*", "mathematical ability*", "mathematical modeling*", "mathematical proficiency*", "mathematically*", "mathematician*", "mathematics*", "measurement*", "modeling*", "modelization*", "money math*", "number crunching*", "numbering*", "numeracy skills*", "numeral*", "numerary*", "numerating*", "numerical competence*", "quantify*", "quantitative*", "reckoning*", "scheduling*", "statistical*", "statistics*", "stats*", "summation*", "tally costs*", "test hypothesis*", "trigonometry*") , 
+Science= c("engineering science*", "natural science*", "realm of science*", "science background*", "science based*", "science degree*", "science field*", "science oriented*", "science-based*", "scientific*", "scientific assessment*", "scientific background*", "scientific basis*", "scientific discipline*", "scientific expertise*", "scientific exploration*", "scientific foundation*", "scientific thinking*", "scientific grounds*", "scientific interest*", "scientific know-how*", "scientific knowledge*", "scientific output*", "scientific research*", "scientific studies*", "scientific study*", "scientific understanding*", "scientific work*", "scientifically*", "scientist*", "scientific spirit*", "hard science*", "scientific expert*", "scientific training*", "scientific competence*", "scientific capacity*", "related to science*", "scientific experience*", "excellence in science*", "scientific quality*", "science aptitude*", "scientific aptitude*") , 
+Writing= c("business writing*", "composing*", "content management*", "creative writing*", "editing*", "email writing*", "essay writing*", "formulate*", "grammar*", "letter writing*", "lettering*", "mark down*", "note*", "note down*", "note taking*", "punctuation*", "put in writing*", "report writing*", "spelling*", "technical writing*", "typesetting*", "typing*", "vocabulary*", "write down*", "write up*", "writing ability*", "referring*", "literature*") , 
+Reading_comprehension= c("lecture*", "perusal*", "read-trough*", "review*", "scanning*", "scrutiny*", "skimming*", "literacy*", "reading skills*") , 
+Listening= c("active listener*", "actively listen*", "actively listening*", "effective listening*", "empathic listening*", "listen actively*", "listener*", "listening*", "listening actively*", "listening skill*", "reflective listening*") , 
+Oral_communication= c("communication with language*", "elocution*", "enunciation*", "good to communicate*", "holding talk*", "language communication*", "language proficiency*", "language skill*", "linguistic communication*", "locution*", "mother tongue*", "native tongue*", "oral communication*", "oral declaration*", "oral explanation*", "oral form of communication*", "oral interaction*", "oral intervention*", "oral notice*", "oral presentation*", "oral presentations*", "oral report*", "oral speech*", "oral statement*", "oral statements*", "oral testimony*", "orally*", "speech*", "speech communication*", "spoken communication*", "spoken communication*", "spoken language*", "verbal expression*", "verbal language*", "verbal-communication*", "verbalization*", "voice communication*", "rhetoric*", "communicate*") , 
+Dexterity= c("finesse*", "ingenuity*", "adroitness*", "handiness*", "craftman*", "craftmenship*", "repair*", "manual work*") , 
+Monitoring= c("assess performance*", "assessing performance*", "audit*", "auditing*", "checking*", "control*", "controlling*", "evaluating*", "evaluation*", "examination*", "examine*", "follow-up*", "inspecting*", "keep an eye on*", "keep control*", "keep track of*", "keeping an eye on*", "maintain control*", "monitor project*", "monitor the progress*", "monitoring*", "monitoring of progress*", "monitoring the progress*", "observe*", "observer*", "oversee*", "overseeing*", "oversight*", "quality-control*", "record*", "scanning*", "screening*", "supervise*", "track progress*", "tracking*", "tracking progress*", "verification*", "watchfulness*", "assess*", "assessement*") , 
+Problem_solving= c("address concern*", "address emerging challenge*", "address emerging issue*", "address emerging problems*", "address issue*", "address new challenges*", "address the challenge*", "address the challenges arising*", "address the concern*", "address the emerging challenge*", "address the issue*", "address the new challenge*", "address the problems*", "addresses the concern*", "addressing challenge*", "addressing concern*", "addressing emerging issue*", "addressing issue*", "addressing problems*", "addressing the challenges*", "addressing the concern*", "addressing the problem*", "analytic*", "conflict competence*", "conflict management*", "conflict resolution*", "conflict-resolution*", "confront the challenge*", "cope with the challenge*", "cope with the new challenge*", "current difficulties*", "deal with the challenges*", "deal with the problem*", "dealing with problem*", "dealing with the challenge*", "dealing with the problem*", "diagnostic*", "dispute resolution*", "draft resolution*", "face the challenge*", "face the problem*", "find a solution*", "find solution*", "find the solution*", "finding a solution*", "fix your problem*", "fixing problem*", "for a solution*", "for resolution*", "for resolving*", "identifying the problem*", "issue resolution*", "logical*", "made up into a solution*", "meet new challenge*", "meet the challenge*", "meet the concerns*", "meeting the challenge*", "meeting the challenge*", "overcome challenge*", "overcome problem*", "overcome the challenge*", "overcome the problem*", "overcomes problem*", "overcomes the problem*", "overcoming problem*", "overcoming the problem*", "problem resolution*", "problem solved*", "problem solver*", "problem solver*", "problem solving*", "problem solving skills*", "problems are solved*", "problem-solve*", "problem-solver*", "problem-solving skills*", "puzzle out*", "remediation*", "remedy issue*", "remedy problem*", "resolution of conflict*", "resolution of conflict*", "resolution of issue*", "resolution of problems*", "resolution of question*", "resolution of the issue*", "resolution of the problem*", "resolution process*", "resolution to the problem*", "resolve case*", "resolve conflict*", "resolve disputes*", "resolve issue*", "resolve matters*", "resolve problem*", "resolve question*", "resolve the issue*", "resolver*", "resolves problem*", "resolves the problem*", "resolving case*", "resolving conflicts*", "resolving dispute*", "resolving issue*", "resolving problem*", "resolving question*", "resolving the issue*", "resolving the problem*", "resolving the question*", "respond to concern*", "respond to emerging challenges*", "respond to new challenge*", "respond to the challenge*", "respond to the concern*", "response to the concern*", "search for a solution*", "search for solution*", "seek a solution*", "seek a solution*", "seeking a solution*", "settle the problem*", "settlement of the issue*", "settlement of the problem*", "solution for problem*", "solution seeker*", "solution to problem*", "solution to the problem*", "solutions for problem*", "solutions for the problem*", "solutions seeker*", "solutions to issue*", "solutions to problem*", "solutions to the challenge*", "solutions to the issue*", "solve a problem*", "solve an issue*", "solve case*", "solve issue*", "solve problem*", "solve the issue*", "solves problem*", "solves the problem*", "solving issue*", "solving problem*", "solving question*", "solving the problem*", "solving this problem*", "tackle problem*", "tackle the challenge*", "tackle the problem*", "tackling problem*", "tackling the challenge*", "tackling the issue*", "tackling the problem*", "troubleshoot problem*", "troubleshooting*", "trouble-shooting*", "troubleshooting problem*") , 
+Decision_making= c("adopt a decision*", "adopt decision*", "adopt resolution*", "adopt resolution*", "adopting decision*", "adoption of a decision*", "adoption of decision*", "adoption of resolution*", "arrive at decision*", "decider*", "decision logic*", "decision maker*", "decision making*", "decision making process*", "decision process*", "decision regarding*", "decision support*", "decision taking*", "decision-maker*", "decision-making*", "decision-taking*", "in the decision-making processes*", "judgement*", "made decision*", "make a choice*", "make a decision*", "make choice*", "make decisions*", "make judgment call*", "make some decision*", "make the choice*", "make the decision*", "make their decisions*", "makes a decision*", "making a decision*", "making choice*", "making decision*", "making of decisions*", "policy maker*", "policy making*", "policymaking*", "policy-making*", "process of decision-making*", "process of making decision*", "reach a decision*", "reach decision*", "reaching a decision*", "reaching decision*", "take a decision*", "take action*", "take decision*", "taking a decision*", "taking decision*", "taking of a decision*", "taking the decision*", "took decision*") , 
+Critical_thinking= c("abstract thought*", "clearheaded*", "clear-thinking*", "critical analysis*", "critical appraisal*", "critical approach*", "critical assessment*", "critical attitude*", "critical evaluation*", "critical examination*", "critical eye*", "critical faculties*", "critical faculty*", "critical judgement*", "critical judgment*", "critical look*", "critical mind*", "critical perspective*", "critical reasoning*", "critical reflection*", "critical review*", "critical scrutiny*", "critical sense*", "critical skills*", "critical spirit*", "critical study*", "critical thought*", "critical view*", "critically*", "critically analyse*", "disciplined thinking*", "examined critically*", "higher cognitive process*", "logical thinking*", "objective analysis*", "objective analysis of facts*", "reasoning*", "reflect critically*", "think critically*", "thinker*", "thinking critically*", "weight-of-the-evidence analysis*", "judgement*") , 
+Finding_information= c("access information*", "access to information*", "accessing information*", "acquire information*", "acquire useful information*", "bridge the information gap*", "capturing information*", "cast around for*", "chase up check into*", "check up on*", "collecting information*", "collection of information*", "collection of relevant information*", "consulting skill*", "deep dive*", "delve*", "dig around*", "dig deep*", "dig into*", "disseminating information*", "dissemination of relevant information*", "examine*", "exchanging information*", "feel out*", "ferret out*", "find information*", "finding information*", "follow up*", "furnishing information*", "gather*", "get information*", "have latest information*", "hold key information*", "holders of key information*", "information gathering*", "information-based skills*", "information-processing*", "information-sharing*", "inspect*", "interrogate*", "investigate*", "investigative*", "knowledge management*", "look into*", "market-relevant information*", "measuring information*", "new information*", "nose around*", "nose into*", "obtain information*", "obtain needed information*", "overcoming scarcity of information*", "provide information*", "provide updated information*", "provides information*", "register information*", "remain informed*", "report good information*", "report information*", "research*", "scout*", "seek information*", "stay informed*", "transmitting information*", "try to find information*", "use of information*", "filter information*", "consult*") , 
+Memory_Use= c("call to mind*", "be reminiscent of*", "calling to mind*", "memorise*", "memorization*", "memorize*", "memory*", "mindfulness*", "recall*", "recalling*", "recollect*", "recollection*", "remember*", "remembering*", "remembrance*", "remind*", "reminisce*", "reminiscence*", "retrospect*", "retrospection*") , 
+Planning_and_Organizing= c("autonomous*", "autonomy*", "high level of autonomy*", "independence*", "independency*", "liberty*", "liberty*", "looking after oneself*", "organize themselves*", "self-administered*", "self-administration*", "self-determine*", "self-directed*", "self-direction*", "self-driving*", "self-efficacy*", "self-governance*", "self-help*", "self-management*", "self-managing*", "self-organization*", "self-reliance*", "self-ruling*", "self-sufficiency*", "planning*", "organizing*") , 
+Creativity= c("creative*", "creativity*", "innovative*", "innovation*", "generate idea*", "generate ideas*", "innovator*", "inventor*", "sustainability knowledge*", "innovate*", "entrepreneurial*") , 
+Collaboration= c("act in concert*", "act jointly*", "action group*", "alliance*", "association*", "be team player*", "being a team player*", "by a team*", "collaborate*", "collaborating with other*", "collaboration workspace*", "collaborative*", "collaborative effort*", "collaborativeness*", "collective action*", "collective effort*", "collective implementation*", "collective labour*", "collective work*", "combined action*", "combined effort*", "common effort*", "companionship*", "concertation*", "concerted efforts*", "concerting*", "cooperate*", "cooperate with other*", "cooperating*", "cooperation*", "cooperative action*", "cooperative effort*", "cooperative labour*", "cooperative work*", "co-operative work*", "cooperative working*", "cooperativeness*", "cooperativeness*", "coordinate*", "coordinated*", "coordinating*", "coordination*", "function as a team*", "group effort*", "group spirit*", "group work*", "groupware*", "harmonization*", "harmonizing*", "joint action*", "joint effort*", "joint work*", "mutual assistance*", "mutual effort*", "orchestration*", "partnership*", "reciprocity*", "team building*", "team effort*", "team oriented*", "team player*", "team spirit*", "team work*", "team working*", "team-building*", "teamwork*", "teamworking*", "united action*", "within a team*", "work as a group*", "work as a team*", "work as part of a team*", "work collaboratively*", "work collectively*", "work cooperatively*", "work in group*", "work in team*", "work together*", "work together with others*", "working as a group*", "working as a team*", "working in team*", "working with other*", "understanding*", "empathic*", "empaty*", "contribute*", "partnership*", "contribute*", "contribution*", "contributor*", "teamwork*", "coordination*") , 
+Instructing= c("instruct*", "schooling*", "teaching*", "tutoring*", "transmission*") , 
+Negotiation= c("ability to negotiate*", "able to negotiate*", "bargaining*", "bargaining position*", "bargaining power*", "bargaining strength*", "be able to negotiate*", "capable of negotiating*", "capacity to negotiate*", "negotiate*", "negotiating capacities*", "negotiating capacity*", "negotiating position*", "negotiating power*", "negotiating power*", "negotiating skills*", "negotiation capacity*", "negotiation position*", "negotiation power*", "power of negotiation*", "power to negotiate*") , 
+Persuasion= c("ability to convince*", "compelling*", "convincer*", "convincing*", "influential*", "persuader*", "persuading*", "persuasive*", "persuasiveness*", "influencing*", "leadership*", "empowering*", "encouraging*", "encourage*", "provide advice*") , 
+Service_orientation= c("account services*", "after sales*", "after sales service*", "after-sales*", "after-sales service*", "care service*", "client relations*", "client service*", "client services*", "client servicing*", "client-service*", "consumer service*", "consumer services*", "customer assistance*", "customer business*", "customer care*", "customer engagement*", "customer interaction*", "customer management*", "customer relationship*", "customer service*", "customer service representatives*", "customer support*", "customer support function*", "customer support service*", "customer support team*", "customer-facing*", "customer-focused service*", "customer-oriented service*", "customer-service*", "customer-to-customer correspondence*", "guest service*", "provision of service to customers*", "relational customer care*", "serve clients*", "serve customer*", "service experience*", "service oriented*", "service to clients*", "service to customer*", "service to the client*", "service to the customer*", "service to the public*", "services for clients*", "services provided to clients*", "services to clients*", "services to the client*", "servicing*", "support service*", "support team*", "user provisioning*", "work with clients*", "sales*", "selling skills*") , 
+Social_Perceptiveness= c("discernment*", "emotional intelligence*", "sagaciousness*", "sagacity*", "situational intelligence*", "social insight*", "social judgement*", "social perception*", "social perceptivity*", "social understanding*", "wisdom*", "civic competence*", "participate in civil society*", "emotional skills*", "socioemotional*", "sociobehavioral*") , 
+Adaptability= c("adaptation*", "new environment*", "adaption*", "accomadate*", "inclusive*", "inclusivity*", "mobility*", "adapt to a changing workplace*", "resilient*", "resilience*", "navigate a changing role*", "green skills*") , 
+Blockchain= c("bitcoin*", "bitmark*", "cryptocurrency*", "cryptographic*", "digital ledger*", "micropayment*") , 
+Cloud_computing= c("cloud app*", "cloud architect*", "cloud backup*", "cloud based computing*", "cloud database*", "cloud enablement*", "cloud enabler*", "cloud management*", "cloud OS*", "cloud provider*", "cloud solutions*", "cloud storage*") , 
+UX_design= c("convenience of the user*", "experience of the use*", "experience of the user*", "experience of user*", "UI Designer*", "UI Developer*", "UI Engineer*", "user convenience*", "user experience*", "User Experience Designer*", "user friendliness*", "user interaction*", "user interface*", "user intervention*", "user satisfaction*", "user-friendliness*", "user-friendly*", "user-interface*", "users experience*") , 
+Digital_marketing= c("data-driven marketing*", "electronic marketing*", "interactive marketing*", "internet marketing*", "online marketing*", "web-marketing*") , 
+Computing= c("coding*", "computer based*", "computer engineering*", "computer literacy*", "computer modelling*", "computer reasoning*", "computer science*", "computer skills*", "computer technology*", "computer-aided learning*", "computer-driven*", "computer-modelling*", "computing*", "cybernetics*", "data processing*", "data science*", "data scientist*", "informatics*", "information science*", "information technology*", "nanotechnology*", "natural language processing*", "neural networks*", "operations of computers*", "processing of the data*", "programming*", "robotics*", "software engineering*", "system analysis*", "systems analysis*", "scientific computing*")
+
+))
+
+my
+```
+
+
+```{r}
+#proportion of each key in each document in my corpus.
+dfm.new <- dfm(my.corpus, dictionary = my)
+dfm.new.prop <- dfm_weight(dfm.new, scheme = "prop")
+convert(dfm.new.prop, "data.frame")
+```
+
+
+
+
+```{r}
+dfm.new
+```
+
+
+```{r}
+dfm.new <- dfm(my.corpus, dictionary = my)
+dfm.new.prop <- dfm_weight(dfm.new, scheme = "prop")
+all_papers <- convert(dfm.new.prop, "data.frame") %>% 
+  bind_cols(my.corpus.stats) 
+ggplot(all_papers, aes(Text, Writing)) + geom_boxplot(outlier.size = 0) + geom_jitter(aes(Text,Writing), position = position_jitter(width = 0.4, height = 0), alpha = 0.1, size = 0.2, show.legend = F) + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + xlab("") + ylab("Share of skills [%]") + ggtitle("Share of writing skills per paper")
+```
+
+
+
+
+
+
+
+
+
+```{r}
+#gather function: convert the data to a long format
+dfm.new <- dfm(my.corpus, dictionary = my)
+dfm.new.prop <- dfm_weight(dfm.new, scheme = "prop")
+share_data <- convert(dfm.new.prop, "data.frame")  %>%
+  rename(Paper = doc_id) 
+
+share_data <- share_data %>%
+  tidyr::gather(key = "Skills", value = "Share", -Paper)
+#only include the first 9 keys of the dictionary(because I think this is the maximum that we can put)
+share_data <- share_data %>%
+  filter(Skills %in% names(my)[1:9])
+
+#group by papers
+share_data <- share_data %>%
+  group_by(Paper) %>%
+  mutate(Share = Share/sum(Share)) %>%
+  mutate(Skills = as_factor(Skills))
+share_data$Paper <- factor(share_data$Paper, levels = unique(share_data$Paper))
+
+ggplot(share_data, aes(Paper, Share, colour = Skills, fill = Skills)) +
+  geom_bar(stat="identity") +
+  scale_colour_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Pastel1") +
+  labs(title = "share of skills for each paper", x = "", y = "Share of skills [%]") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
